@@ -43,13 +43,29 @@ def send_interest(
     if blocked:
         raise HTTPException(status_code=403, detail="Cannot send interest to this profile.")
 
-    # Check for existing interest
+    # Check for existing interest in the same direction
     existing = db.query(Interest).filter(
         Interest.sender_id == current_user.id,
         Interest.receiver_id == receiver.id
     ).first()
     if existing:
         raise HTTPException(status_code=400, detail="Interest already sent.")
+
+    # Check for existing interest in the opposite direction (from receiver to current user)
+    opposite = db.query(Interest).filter(
+        Interest.sender_id == receiver.id,
+        Interest.receiver_id == current_user.id
+    ).first()
+
+    if opposite:
+        # If there's an opposite pending or declined interest, auto-accept it to connect them
+        if opposite.status in ["Pending", "Declined"]:
+            opposite.status = "Accepted"
+            db.commit()
+            db.refresh(opposite)
+            return opposite
+        else:
+            raise HTTPException(status_code=400, detail="You are already connected with this user.")
 
     # Create interest
     interest = Interest(sender_id=current_user.id, receiver_id=receiver.id, status="Pending")
@@ -63,7 +79,10 @@ def get_received_interests(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    interests = db.query(Interest).filter(Interest.receiver_id == current_user.id).all()
+    interests = db.query(Interest).filter(
+        Interest.receiver_id == current_user.id,
+        Interest.status != "Declined"
+    ).all()
     # We populate the profile objects in responses via serialization
     return interests
 
