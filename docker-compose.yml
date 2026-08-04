@@ -1,0 +1,37 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: matrimony_db
+    restart: always
+    environment:
+      POSTGRES_USER: matrimony_user
+      POSTGRES_PASSWORD: matrimony_password
+      POSTGRES_DB: matrimony_db
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U matrimony_user -d matrimony_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: .
+    container_name: matrimony_web
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://matrimony_user:matrimony_password@db:5432/matrimony_db
+      - SECRET_KEY=supersecretkeymatrimonyapplication12345!
+      - ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=1440
+      - PROJECT_NAME=Matrimony API
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
