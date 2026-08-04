@@ -196,3 +196,16 @@ def get_help_and_support():
             {"question": "What happens when contact views run out?", "answer": "You will need to upgrade/subscribe to Silver, Gold, or Platinum plans to get more views."}
         ]
     }
+
+
+class PaymentConfigResponse(BaseModel):
+    merchant_upi_id: str
+    merchant_name: str
+
+@router.get("/payment-config", response_model=PaymentConfigResponse)
+def get_payment_config():
+    from app.config import settings
+    return PaymentConfigResponse(
+        merchant_upi_id=settings.MERCHANT_UPI_ID,
+        merchant_name=settings.MERCHANT_NAME
+    )

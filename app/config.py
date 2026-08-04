@@ -7,6 +7,10 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
     PROJECT_NAME: str = "Matrimony API"
+    
+    # UPI Payments Config
+    MERCHANT_UPI_ID: str = "matrimonyapp@upi"
+    MERCHANT_NAME: str = "Matrimony Services"
 
     class Config:
         env_file = ".env"

@@ -19,6 +19,14 @@ class Interest(Base):
     sender = relationship("User", foreign_keys=[sender_id], back_populates="interests_sent")
     receiver = relationship("User", foreign_keys=[receiver_id], back_populates="interests_received")
 
+    @property
+    def sender_profile(self):
+        return self.sender.profile if self.sender else None
+
+    @property
+    def receiver_profile(self):
+        return self.receiver.profile if self.receiver else None
+
 
 class ProfileVisit(Base):
     __tablename__ = "profile_visits"
@@ -31,6 +39,14 @@ class ProfileVisit(Base):
     visitor = relationship("User", foreign_keys=[visitor_id], back_populates="visits_sent")
     visited = relationship("User", foreign_keys=[visited_id], back_populates="visits_received")
 
+    @property
+    def visitor_profile(self):
+        return self.visitor.profile if self.visitor else None
+
+    @property
+    def visited_profile(self):
+        return self.visited.profile if self.visited else None
+
 
 class ContactView(Base):
     __tablename__ = "contact_views"
@@ -42,6 +58,10 @@ class ContactView(Base):
 
     viewer = relationship("User", foreign_keys=[viewer_id], back_populates="contacts_viewed")
     viewed = relationship("User", foreign_keys=[viewed_id], back_populates="contact_viewers")
+
+    @property
+    def viewed_profile(self):
+        return self.viewed.profile if self.viewed else None
 
 
 class Favourite(Base):
@@ -58,6 +78,10 @@ class Favourite(Base):
 
     user = relationship("User", foreign_keys=[user_id], back_populates="favourites_sent")
     favourited = relationship("User", foreign_keys=[favourited_id], back_populates="favourites_received")
+
+    @property
+    def favourited_profile(self):
+        return self.favourited.profile if self.favourited else None
 
 
 class Note(Base):
