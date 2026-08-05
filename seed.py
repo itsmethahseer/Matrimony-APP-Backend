@@ -10,9 +10,7 @@ from app.models.interaction import Interest, ProfileVisit, ContactView, Favourit
 from app.models.chat import ChatMessage
 from app.utils.security import get_password_hash
 
-DATABASE_URL = settings.DATABASE_URL
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(bind=engine)
+from app.database import engine, SessionLocal, Base
 
 def seed_db():
     print("Recreating database tables...")

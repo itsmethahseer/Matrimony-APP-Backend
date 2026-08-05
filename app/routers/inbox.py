@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import or_, and_, desc, func
+from sqlalchemy import or_, and_, desc, func, case
 from typing import List, Optional
 import datetime
 
@@ -80,7 +80,10 @@ def get_conversations(
     db: Session = Depends(get_db)
 ):
     # Find all unique users this user has chatted with
-    # Subquery to get max message ID for each conversation
+    # Subquery to get max message ID for each conversation (Cross-DB compatible with PostgreSQL and SQLite)
+    pair_low = case((ChatMessage.sender_id < ChatMessage.receiver_id, ChatMessage.sender_id), else_=ChatMessage.receiver_id)
+    pair_high = case((ChatMessage.sender_id < ChatMessage.receiver_id, ChatMessage.receiver_id), else_=ChatMessage.sender_id)
+
     subquery = db.query(
         func.max(ChatMessage.id).label("max_id")
     ).filter(
@@ -89,11 +92,11 @@ def get_conversations(
             ChatMessage.receiver_id == current_user.id
         )
     ).group_by(
-        func.least(ChatMessage.sender_id, ChatMessage.receiver_id),
-        func.greatest(ChatMessage.sender_id, ChatMessage.receiver_id)
+        pair_low, pair_high
     ).subquery()
 
-    messages = db.query(ChatMessage).filter(ChatMessage.id.in_(subquery)).order_by(desc(ChatMessage.created_at)).all()
+    subquery_select = db.query(subquery.c.max_id)
+    messages = db.query(ChatMessage).filter(ChatMessage.id.in_(subquery_select)).order_by(desc(ChatMessage.created_at)).all()
     
     conversations = []
     for msg in messages:
