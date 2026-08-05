@@ -11,6 +11,7 @@ from app.models.chat import ChatMessage
 from app.models.interaction import Block
 from app.schemas.chat import MessageCreate, MessageResponse, ChatSummaryResponse, ChatParticipant
 from app.utils.deps import get_current_user
+from app.utils.credits import get_action_credit_cost
 
 router = APIRouter(prefix="/inbox", tags=["Inbox & Chats"])
 
@@ -40,26 +41,34 @@ def send_message(
     if blocked:
         raise HTTPException(status_code=403, detail="Cannot send message. User has blocked you or is blocked.")
 
-    # Check quotas
+    # Check quotas and deduct credits
     if msg_in.message_type == "chat":
-        if current_user.remaining_messages <= 0:
+        cost = get_action_credit_cost(current_user.plan_type, "send_message")
+        if current_user.credits < cost:
             raise HTTPException(
                 status_code=403,
-                detail="No messages remaining in your plan. Upgrade your subscription to send more messages!"
+                detail=f"Insufficient credits remaining. Sending a message requires {cost} credits. Please upgrade your membership!"
             )
-        current_user.remaining_messages -= 1
+        if current_user.remaining_messages > 0:
+            current_user.remaining_messages -= 1
+        current_user.credits -= cost
         
     elif msg_in.message_type == "call":
         duration_minutes = (msg_in.call_duration or 0) // 60
         if duration_minutes <= 0:
             duration_minutes = 1 # count minimum 1 minute
             
-        if current_user.remaining_call_time < duration_minutes:
+        cost_per_minute = get_action_credit_cost(current_user.plan_type, "call")
+        total_cost = cost_per_minute * duration_minutes
+        
+        if current_user.credits < total_cost:
             raise HTTPException(
                 status_code=403,
-                detail="Insufficient call time remaining. Subscribe/Renew your plan now!"
+                detail=f"Insufficient credits remaining. Calling requires {total_cost} credits ({cost_per_minute} credits/min). Please upgrade your membership!"
             )
-        current_user.remaining_call_time -= duration_minutes
+        if current_user.remaining_call_time >= duration_minutes:
+            current_user.remaining_call_time -= duration_minutes
+        current_user.credits -= total_cost
 
     message = ChatMessage(
         sender_id=current_user.id,

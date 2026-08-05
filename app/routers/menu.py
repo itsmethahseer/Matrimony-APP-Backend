@@ -21,6 +21,7 @@ class MenuSummaryResponse(BaseModel):
     remaining_contact_views: int
     remaining_messages: int
     remaining_call_time: int
+    credits: int
     plan_validity: Optional[datetime.datetime]
     is_expired: bool
 
@@ -58,6 +59,7 @@ def get_menu_summary(
         remaining_contact_views=current_user.remaining_contact_views,
         remaining_messages=current_user.remaining_messages,
         remaining_call_time=current_user.remaining_call_time,
+        credits=current_user.credits,
         plan_validity=current_user.plan_validity,
         is_expired=is_expired
     )
@@ -84,16 +86,19 @@ def subscribe_or_upgrade(
         contact_views = 20
         messages = 200
         call_time = 60
+        credits_replenish = 100
     elif plan == "gold":
         validity_days = 90
         contact_views = 100
         messages = 1000
         call_time = 300
+        credits_replenish = 500
     elif plan == "platinum":
         validity_days = 180
         contact_views = 9999
         messages = 9999
         call_time = 1000
+        credits_replenish = 9999
     else:
         raise HTTPException(status_code=400, detail="Invalid plan type. Options: Silver, Gold, Platinum")
 
@@ -102,6 +107,7 @@ def subscribe_or_upgrade(
     current_user.remaining_contact_views = contact_views
     current_user.remaining_messages = messages
     current_user.remaining_call_time = call_time
+    current_user.credits = credits_replenish
     current_user.plan_validity = datetime.datetime.utcnow() + datetime.timedelta(days=validity_days)
     
     db.commit()

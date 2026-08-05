@@ -29,6 +29,7 @@ class UserResponse(UserBase):
     remaining_contact_views: int
     remaining_messages: int
     remaining_call_time: int
+    credits: int
     plan_validity: Optional[datetime.datetime] = None
     id_verification_status: str
     id_verification_document_url: Optional[str] = None

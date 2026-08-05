@@ -19,6 +19,7 @@ class User(Base):
     remaining_contact_views = Column(Integer, default=5)
     remaining_messages = Column(Integer, default=50)
     remaining_call_time = Column(Integer, default=0)    # in minutes
+    credits = Column(Integer, default=25)
     plan_validity = Column(DateTime, nullable=True)
     
     # ID Verification

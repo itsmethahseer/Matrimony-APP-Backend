@@ -68,6 +68,13 @@ def run_auto_migrations(engine_instance):
                         conn.execute(text(f"ALTER TABLE profiles ADD COLUMN IF NOT EXISTS {col_name} {col_type};"))
                 except Exception:
                     pass # Column already exists or table not yet created
+            try:
+                if "sqlite" in str(engine_instance.url):
+                    conn.execute(text("ALTER TABLE users ADD COLUMN credits INTEGER DEFAULT 25;"))
+                else:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS credits INTEGER DEFAULT 25;"))
+            except Exception:
+                pass
     except Exception as err:
         logger.warning(f"Auto-migration failed: {err}")
 

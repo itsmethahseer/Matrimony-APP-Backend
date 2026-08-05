@@ -162,6 +162,10 @@ class Profile(Base):
     # Relationships
     user = relationship("User", back_populates="profile")
 
+    @property
+    def photos(self):
+        return self.user.photos if self.user else []
+
 class Photo(Base):
     __tablename__ = "photos"
 

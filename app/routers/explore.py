@@ -15,6 +15,7 @@ from app.schemas.interaction import (
     NoteResponse, NoteCreate, BlockResponse, BlockCreate, PassResponse, PassCreate
 )
 from app.utils.deps import get_current_user
+from app.utils.credits import get_action_credit_cost
 
 router = APIRouter(prefix="/explore", tags=["Explore & Interactions"])
 
@@ -66,6 +67,15 @@ def send_interest(
             return opposite
         else:
             raise HTTPException(status_code=400, detail="You are already connected with this user.")
+
+    # Check cost and deduct credits
+    cost = get_action_credit_cost(current_user.plan_type, "send_interest")
+    if current_user.credits < cost:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Insufficient credits remaining. Sending interest requires {cost} credits. Please upgrade your membership!"
+        )
+    current_user.credits -= cost
 
     # Create interest
     interest = Interest(sender_id=current_user.id, receiver_id=receiver.id, status="Pending")
@@ -157,15 +167,17 @@ def view_contact_details(
     ).first()
 
     if not existing:
-        # Check remaining view limit
-        if current_user.remaining_contact_views <= 0:
+        cost = get_action_credit_cost(current_user.plan_type, "contact_view")
+        if current_user.credits < cost:
             raise HTTPException(
                 status_code=403,
-                detail="No contact views remaining. Upgrade your membership plan to view more contact details!"
+                detail=f"Insufficient credits remaining. Unlocking contact details requires {cost} credits. Please upgrade your membership!"
             )
         
         # Decrement limit
-        current_user.remaining_contact_views -= 1
+        if current_user.remaining_contact_views > 0:
+            current_user.remaining_contact_views -= 1
+        current_user.credits -= cost
         
         # Log view
         existing = ContactView(viewer_id=current_user.id, viewed_id=target_user_id)

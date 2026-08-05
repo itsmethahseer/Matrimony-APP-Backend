@@ -34,6 +34,9 @@ def seed_db():
             {"email": "mariam@example.com", "password": "password123", "membership_status": "Free", "plan_type": None, "views": 5, "messages": 5, "calls": 0},
             {"email": "bilal@example.com", "password": "password123", "membership_status": "Free", "plan_type": None, "views": 5, "messages": 5, "calls": 0},
             {"email": "yousef@example.com", "password": "password123", "membership_status": "Premium", "plan_type": "Platinum", "views": 9999, "messages": 9999, "calls": 1000},
+            # Dedicated Interest Tester Users
+            {"email": "interest_tester_male@example.com", "password": "password123", "membership_status": "Free", "plan_type": None, "views": 10, "messages": 10, "calls": 0},
+            {"email": "interest_tester_female@example.com", "password": "password123", "membership_status": "Free", "plan_type": None, "views": 10, "messages": 10, "calls": 0},
         ]
         
         db_users = []
@@ -46,6 +49,7 @@ def seed_db():
                 remaining_contact_views=ud["views"],
                 remaining_messages=ud["messages"],
                 remaining_call_time=ud["calls"],
+                credits=9999 if ud["views"] == 9999 else ud["views"] * 5,
                 plan_validity=datetime.datetime.utcnow() + datetime.timedelta(days=90) if ud["plan_type"] else None,
                 id_verification_status="Verified" if ud["email"] in ["ahmed@example.com", "fatima@example.com", "yousef@example.com"] else "Unverified",
                 last_active_at=datetime.datetime.utcnow() - datetime.timedelta(minutes=3) if ud["email"] in ["ahmed@example.com", "aisha@example.com", "yousef@example.com"] else datetime.datetime.utcnow() - datetime.timedelta(hours=2)
@@ -223,6 +227,46 @@ def seed_db():
                 "education": "Bachelor of Commerce",
                 "partner_age_min": 22,
                 "partner_age_max": 28,
+            },
+            {
+                "user_id": users_dict["interest_tester_male@example.com"].id,
+                "name": "Sameer MaleTester",
+                "age": 27,
+                "gender": "Male",
+                "marital_status": "Never Married",
+                "language": "Hindi",
+                "religion": "Islam",
+                "sect": "Sunni",
+                "present_location": "Delhi",
+                "profession": "Marketing Manager",
+                "annual_income": 800000.0,
+                "height": 175.0,
+                "weight": 70.0,
+                "differently_abled": False,
+                "orphan_poor_girl": False,
+                "education": "MBA Marketing",
+                "partner_age_min": 22,
+                "partner_age_max": 28,
+            },
+            {
+                "user_id": users_dict["interest_tester_female@example.com"].id,
+                "name": "Sara FemaleTester",
+                "age": 24,
+                "gender": "Female",
+                "marital_status": "Never Married",
+                "language": "Urdu",
+                "religion": "Islam",
+                "sect": "Sunni",
+                "present_location": "Mumbai",
+                "profession": "Content Writer",
+                "annual_income": 450000.0,
+                "height": 160.0,
+                "weight": 52.0,
+                "differently_abled": False,
+                "orphan_poor_girl": False,
+                "education": "B.A. English Literature",
+                "partner_age_min": 24,
+                "partner_age_max": 30,
             }
         ]
         
@@ -282,6 +326,8 @@ def seed_db():
             {"user_id": users_dict["mariam@example.com"].id, "url": f"{photo_url_base}1494790108377-be9c29b29330", "is_main": True},
             {"user_id": users_dict["bilal@example.com"].id, "url": f"{photo_url_base}1500648767791-00dcc994a43e", "is_main": True},
             {"user_id": users_dict["yousef@example.com"].id, "url": f"{photo_url_base}1472099645785-5658abf4ff4e", "is_main": True},
+            {"user_id": users_dict["interest_tester_male@example.com"].id, "url": f"{photo_url_base}1507003211169-0a1dd7228f2d", "is_main": True},
+            {"user_id": users_dict["interest_tester_female@example.com"].id, "url": f"{photo_url_base}1517841905240-472988babdf9", "is_main": True},
         ]
         
         for p in photos_data:
@@ -303,7 +349,28 @@ def seed_db():
         interest2 = Interest(sender_id=users_dict["ahmed@example.com"].id, receiver_id=users_dict["fatima@example.com"].id, status="Accepted")
         # Zainab sends interest to Ahmed (Pending)
         interest3 = Interest(sender_id=users_dict["zainab@example.com"].id, receiver_id=users_dict["ahmed@example.com"].id, status="Pending")
-        db.add_all([interest1, interest2, interest3])
+
+        # Dedicated Interest Tester - Male as Sender
+        interest_tm_1 = Interest(sender_id=users_dict["interest_tester_male@example.com"].id, receiver_id=users_dict["interest_tester_female@example.com"].id, status="Pending")
+        interest_tm_2 = Interest(sender_id=users_dict["interest_tester_male@example.com"].id, receiver_id=users_dict["fatima@example.com"].id, status="Accepted")
+        interest_tm_3 = Interest(sender_id=users_dict["interest_tester_male@example.com"].id, receiver_id=users_dict["aisha@example.com"].id, status="Declined")
+
+        # Dedicated Interest Tester - Male as Receiver
+        interest_tm_4 = Interest(sender_id=users_dict["zainab@example.com"].id, receiver_id=users_dict["interest_tester_male@example.com"].id, status="Pending")
+        interest_tm_5 = Interest(sender_id=users_dict["yasmin@example.com"].id, receiver_id=users_dict["interest_tester_male@example.com"].id, status="Accepted")
+        interest_tm_6 = Interest(sender_id=users_dict["mariam@example.com"].id, receiver_id=users_dict["interest_tester_male@example.com"].id, status="Declined")
+
+        # Dedicated Interest Tester - Female as Sender (in addition to interest_tm_1 received)
+        interest_tf_1 = Interest(sender_id=users_dict["interest_tester_female@example.com"].id, receiver_id=users_dict["yousef@example.com"].id, status="Pending")
+        interest_tf_2 = Interest(sender_id=users_dict["interest_tester_female@example.com"].id, receiver_id=users_dict["bilal@example.com"].id, status="Accepted")
+        interest_tf_3 = Interest(sender_id=users_dict["interest_tester_female@example.com"].id, receiver_id=users_dict["ahmed@example.com"].id, status="Declined")
+
+        db.add_all([
+            interest1, interest2, interest3, 
+            interest_tm_1, interest_tm_2, interest_tm_3, 
+            interest_tm_4, interest_tm_5, interest_tm_6, 
+            interest_tf_1, interest_tf_2, interest_tf_3
+        ])
         
         # Ahmed Favourites Fatima
         fav = Favourite(user_id=users_dict["ahmed@example.com"].id, favourited_id=users_dict["fatima@example.com"].id)

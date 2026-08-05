@@ -7,7 +7,7 @@ import datetime
 from app.database import get_db
 from app.models.user import User
 from app.models.profile import Profile, Photo
-from app.models.interaction import ProfileVisit, Block
+from app.models.interaction import ProfileVisit, Block, ContactView
 from app.schemas.profile import ProfileResponse, ProfileUpdate, PhotoResponse, PhotoCreate
 from app.utils.deps import get_current_user
 
@@ -277,5 +277,31 @@ def get_profile_by_id(
         visit = ProfileVisit(visitor_id=current_user.id, visited_id=profile.user_id)
         db.add(visit)
         db.commit()
+
+    # Check if unlocked
+    unlocked = False
+    if profile.user_id == current_user.id:
+        unlocked = True
+    else:
+        existing_view = db.query(ContactView).filter(
+            ContactView.viewer_id == current_user.id,
+            ContactView.viewed_id == profile.user_id
+        ).first()
+        if existing_view:
+            unlocked = True
+
+    # Construct the profile response data
+    profile_data = ProfileResponse.model_validate(profile)
+    
+    if not unlocked:
+        # Mask contact details so they are never sent to the frontend
+        profile_data.primary_no = "Locked (Unlock to View)"
+        profile_data.secondary_no = "Locked"
+        profile_data.email = "Locked"
+        profile_data.whatsapp_no = "Locked (Unlock to View)"
+        profile_data.full_address = "Locked (Please Unlock to View)"
+        profile_data.contact_person = "Locked"
+        profile_data.best_time_to_call = "Locked"
+        profile_data.preferred_contact_method = "Locked"
         
-    return profile
+    return profile_data
