@@ -89,27 +89,49 @@ def get_matches(
         
     else:
         # Default algorithm: Partner Preferences matching
-        # Match Age range
-        query = query.filter(
-            Profile.age >= my_profile.partner_age_min,
-            Profile.age <= my_profile.partner_age_max
-        )
-        # Match height range (if specified)
+        # 1. Partner Religion Preference
+        rel_pref = my_profile.partner_religion
+        if rel_pref and isinstance(rel_pref, list) and len(rel_pref) > 0 and "Any" not in rel_pref and "All" not in rel_pref:
+            query = query.filter(Profile.religion.in_(rel_pref))
+        elif my_profile.religion:
+            query = query.filter(Profile.religion == my_profile.religion)
+
+        # 2. Partner Caste / Sect Preference
+        caste_pref = my_profile.partner_caste
+        if caste_pref and isinstance(caste_pref, list) and len(caste_pref) > 0 and "Any" not in caste_pref and "All" not in caste_pref and "Open to All" not in caste_pref:
+            query = query.filter(or_(Profile.caste.in_(caste_pref), Profile.sect.in_(caste_pref)))
+
+        # 3. Partner Sub-Caste Preference
+        sub_caste_pref = my_profile.partner_sub_caste
+        if sub_caste_pref and isinstance(sub_caste_pref, list) and len(sub_caste_pref) > 0 and "Any" not in sub_caste_pref and "All" not in sub_caste_pref:
+            query = query.filter(Profile.sub_caste.in_(sub_caste_pref))
+
+        # 4. Partner Marital Status Preference
+        marital_pref = my_profile.partner_marital_status
+        if marital_pref and isinstance(marital_pref, list) and len(marital_pref) > 0 and "Any" not in marital_pref and "All" not in marital_pref:
+            query = query.filter(Profile.marital_status.in_(marital_pref))
+
+        # 5. Age & Height Filters
+        if my_profile.partner_age_min:
+            query = query.filter(Profile.age >= my_profile.partner_age_min)
+        if my_profile.partner_age_max:
+            query = query.filter(Profile.age <= my_profile.partner_age_max)
         if my_profile.partner_height_min:
             query = query.filter(Profile.height >= my_profile.partner_height_min)
         if my_profile.partner_height_max:
             query = query.filter(Profile.height <= my_profile.partner_height_max)
-        # Match religion (if specified)
-        if my_profile.religion:
-            query = query.filter(Profile.religion == my_profile.religion)
-        # Match partner country preferences
-        if my_profile.partner_country_pref and "All" not in my_profile.partner_country_pref:
-            query = query.filter(Profile.present_country.in_(my_profile.partner_country_pref))
-        # Match partner state preferences
-        if my_profile.partner_state_pref and "All" not in my_profile.partner_state_pref:
-            query = query.filter(Profile.present_state.in_(my_profile.partner_state_pref))
 
-    return query.limit(50).all()
+        results = query.limit(50).all()
+
+        # Fallback if strict filter yields fewer than 3 profiles: fetch opposite gender profiles
+        if len(results) < 3:
+            fallback_query = db.query(Profile).filter(
+                Profile.gender == opposite_gender,
+                Profile.user_id.notin_(exclude_ids)
+            ).order_by(desc(Profile.id)).limit(50)
+            return fallback_query.all()
+
+        return results
 
 @router.get("/search", response_model=List[ProfileResponse])
 def search_profiles(
