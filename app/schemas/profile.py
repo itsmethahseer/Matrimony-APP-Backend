@@ -68,6 +68,8 @@ class LocationOriginUpdate(BaseModel):
 class SocioReligiousUpdate(BaseModel):
     religion: Optional[str] = None
     sect: Optional[str] = None
+    caste: Optional[str] = None
+    sub_caste: Optional[str] = None
     religiousness: Optional[str] = None
     namaz: Optional[str] = None
     quran: Optional[str] = None
@@ -130,6 +132,9 @@ class PartnerPreferencesUpdate(BaseModel):
     partner_age_max: Optional[int] = 70
     partner_height_min: Optional[float] = None
     partner_height_max: Optional[float] = None
+    partner_religion: Optional[List[str]] = None
+    partner_caste: Optional[List[str]] = None
+    partner_sub_caste: Optional[List[str]] = None
     partner_marital_status: Optional[List[str]] = None
     partner_physical_status: Optional[str] = None
     partner_eating_habit: Optional[str] = None
@@ -211,6 +216,8 @@ class ProfileUpdate(BaseModel):
     # Socio-religious
     religion: Optional[str] = None
     sect: Optional[str] = None
+    caste: Optional[str] = None
+    sub_caste: Optional[str] = None
     religiousness: Optional[str] = None
     namaz: Optional[str] = None
     quran: Optional[str] = None
@@ -277,6 +284,9 @@ class ProfileUpdate(BaseModel):
     partner_age_max: Optional[int] = None
     partner_height_min: Optional[float] = None
     partner_height_max: Optional[float] = None
+    partner_religion: Optional[List[str]] = None
+    partner_caste: Optional[List[str]] = None
+    partner_sub_caste: Optional[List[str]] = None
     partner_marital_status: Optional[List[str]] = None
     partner_physical_status: Optional[str] = None
     partner_eating_habit: Optional[str] = None
@@ -351,6 +361,8 @@ class ProfileResponse(BaseModel):
     # Socio-religious
     religion: Optional[str] = None
     sect: Optional[str] = None
+    caste: Optional[str] = None
+    sub_caste: Optional[str] = None
     religiousness: Optional[str] = None
     namaz: Optional[str] = None
     quran: Optional[str] = None
@@ -417,6 +429,9 @@ class ProfileResponse(BaseModel):
     partner_age_max: int
     partner_height_min: Optional[float] = None
     partner_height_max: Optional[float] = None
+    partner_religion: Optional[List[str]] = None
+    partner_caste: Optional[List[str]] = None
+    partner_sub_caste: Optional[List[str]] = None
     partner_marital_status: Optional[List[str]] = None
     partner_physical_status: Optional[str] = None
     partner_eating_habit: Optional[str] = None

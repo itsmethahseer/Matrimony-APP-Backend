@@ -197,6 +197,25 @@ def get_my_photos(
 ):
     return db.query(Photo).filter(Photo.user_id == current_user.id).all()
 
+@router.put("/photos/{photo_id}/set-main", response_model=PhotoResponse)
+def set_main_photo(
+    photo_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    target_photo = db.query(Photo).filter(Photo.id == photo_id, Photo.user_id == current_user.id).first()
+    if not target_photo:
+        raise HTTPException(status_code=404, detail="Photo not found")
+
+    # Unset all other main photos for this user
+    db.query(Photo).filter(Photo.user_id == current_user.id).update({"is_main": False})
+    
+    # Set selected photo as main
+    target_photo.is_main = True
+    db.commit()
+    db.refresh(target_photo)
+    return target_photo
+
 @router.delete("/photos/{photo_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_photo(
     photo_id: int,

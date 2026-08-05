@@ -67,6 +67,8 @@ class Profile(Base):
     # Socio Religious
     religion = Column(String, index=True, nullable=True)
     sect = Column(String, index=True, nullable=True)
+    caste = Column(String, index=True, nullable=True)
+    sub_caste = Column(String, index=True, nullable=True)
     religiousness = Column(String, nullable=True) # Very religious, Moderately religious, Not religious
     namaz = Column(String, nullable=True) # Always, Frequently, Occasionally, Never
     quran = Column(String, nullable=True) # Daily, Weekly, Rarely, Never
@@ -137,6 +139,9 @@ class Profile(Base):
     partner_age_max = Column(Integer, default=70)
     partner_height_min = Column(Float, nullable=True)
     partner_height_max = Column(Float, nullable=True)
+    partner_religion = Column(JSON, nullable=True) # List of acceptable religions
+    partner_caste = Column(JSON, nullable=True) # List of acceptable castes/sects
+    partner_sub_caste = Column(JSON, nullable=True) # List of acceptable subcastes
     partner_marital_status = Column(JSON, nullable=True) # List of acceptable statuses
     partner_physical_status = Column(String, nullable=True)
     partner_eating_habit = Column(String, nullable=True)
