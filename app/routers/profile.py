@@ -121,17 +121,17 @@ def get_matches(
         if my_profile.partner_height_max:
             query = query.filter(Profile.height <= my_profile.partner_height_max)
 
-        results = query.limit(50).all()
+    results = query.limit(50).all()
 
-        # Fallback if strict filter yields fewer than 3 profiles: fetch opposite gender profiles
-        if len(results) < 3:
-            fallback_query = db.query(Profile).filter(
-                Profile.gender == opposite_gender,
-                Profile.user_id.notin_(exclude_ids)
-            ).order_by(desc(Profile.id)).limit(50)
-            return fallback_query.all()
+    # Fallback if category filter yields fewer than 3 profiles: fetch opposite gender profiles
+    if len(results) < 3:
+        fallback_query = db.query(Profile).filter(
+            Profile.gender == opposite_gender,
+            Profile.user_id.notin_(exclude_ids)
+        ).order_by(desc(Profile.id)).limit(50)
+        return fallback_query.all()
 
-        return results
+    return results
 
 @router.get("/search", response_model=List[ProfileResponse])
 def search_profiles(
