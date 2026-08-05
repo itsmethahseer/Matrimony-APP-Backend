@@ -2,6 +2,8 @@
 
 A complete, feature-rich FastAPI backend developed for a premium matrimony application. It integrates user authentication, comprehensive user profiles, interactions (interests, visits, contact views, blocking, passing, favourites, and private notes), real-time chat/requests/calls logs, and membership management (Silver, Gold, Platinum subscription quotas).
 
+> 💡 **Production Deployment**: See [HOSTING.md](./HOSTING.md) for the low-cost cloud hosting strategy (Oracle Cloud Free Tier, Cloudflare Pages/R2, Hetzner, and Expo EAS).
+
 ---
 
 ## Architecture & Directory Layout
