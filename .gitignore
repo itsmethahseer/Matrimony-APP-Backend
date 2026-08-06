@@ -20,3 +20,4 @@ postgres_data/
 # OS specific files
 .DS_Store
 Thumbs.db
+matrimony.db
