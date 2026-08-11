@@ -7,8 +7,8 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    email = Column(String, unique=True, index=True, nullable=True)
-    phone_number = Column(String, unique=True, index=True, nullable=True)
+    email = Column(String, index=True, nullable=True)
+    phone_number = Column(String, index=True, nullable=True)
     google_id = Column(String, unique=True, index=True, nullable=True)
     auth_provider = Column(String, default="email") # email, google, phone
     hashed_password = Column(String, nullable=True)

@@ -33,15 +33,7 @@ RESET_STORE = {}
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def register_user(user_in: UserCreate, db: Session = Depends(get_db)):
-    # Check if user already exists
-    db_user = db.query(User).filter(User.email == user_in.email).first()
-    if db_user:
-        raise HTTPException(
-            status_code=400,
-            detail="A user with this email already exists."
-        )
-    
-    # Create User
+    # Create User (allowing multiple accounts under same email/phone for family profiles)
     hashed_password = get_password_hash(user_in.password)
     user = User(
         email=user_in.email,
@@ -67,20 +59,28 @@ def register_user(user_in: UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=Token)
 def login_user(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    user = db.query(User).filter((User.email == form_data.username) | (User.phone_number == form_data.username)).first()
-    if not user or not user.hashed_password or not verify_password(form_data.password, user.hashed_password):
+    username_input = form_data.username.strip()
+    users = db.query(User).filter((User.email == username_input) | (User.phone_number == username_input)).all()
+    
+    matching_user = None
+    for u in users:
+        if u.hashed_password and verify_password(form_data.password, u.hashed_password):
+            matching_user = u
+            break
+
+    if not matching_user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email/phone or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    elif not user.is_active:
+    elif not matching_user.is_active:
         raise HTTPException(
             status_code=400,
             detail="Inactive user"
         )
     
-    access_token = create_access_token(subject=user.id)
+    access_token = create_access_token(subject=matching_user.id)
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.post("/google-auth", response_model=Token)
