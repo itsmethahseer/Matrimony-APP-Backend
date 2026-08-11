@@ -44,32 +44,32 @@ def send_message(
     # Check quotas and deduct credits (Skipped for Admin users)
     if not current_user.is_admin:
         if msg_in.message_type == "chat":
-        cost = get_action_credit_cost(current_user.plan_type, "send_message")
-        if current_user.credits < cost:
-            raise HTTPException(
-                status_code=403,
-                detail=f"Insufficient credits remaining. Sending a message requires {cost} credits. Please upgrade your membership!"
-            )
-        if current_user.remaining_messages > 0:
-            current_user.remaining_messages -= 1
-        current_user.credits -= cost
-        
-    elif msg_in.message_type == "call":
-        duration_minutes = (msg_in.call_duration or 0) // 60
-        if duration_minutes <= 0:
-            duration_minutes = 1 # count minimum 1 minute
+            cost = get_action_credit_cost(current_user.plan_type, "send_message")
+            if current_user.credits < cost:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Insufficient credits remaining. Sending a message requires {cost} credits. Please upgrade your membership!"
+                )
+            if current_user.remaining_messages > 0:
+                current_user.remaining_messages -= 1
+            current_user.credits -= cost
             
-        cost_per_minute = get_action_credit_cost(current_user.plan_type, "call")
-        total_cost = cost_per_minute * duration_minutes
-        
-        if current_user.credits < total_cost:
-            raise HTTPException(
-                status_code=403,
-                detail=f"Insufficient credits remaining. Calling requires {total_cost} credits ({cost_per_minute} credits/min). Please upgrade your membership!"
-            )
-        if current_user.remaining_call_time >= duration_minutes:
-            current_user.remaining_call_time -= duration_minutes
-        current_user.credits -= total_cost
+        elif msg_in.message_type == "call":
+            duration_minutes = (msg_in.call_duration or 0) // 60
+            if duration_minutes <= 0:
+                duration_minutes = 1 # count minimum 1 minute
+                
+            cost_per_minute = get_action_credit_cost(current_user.plan_type, "call")
+            total_cost = cost_per_minute * duration_minutes
+            
+            if current_user.credits < total_cost:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Insufficient credits remaining. Calling requires {total_cost} credits ({cost_per_minute} credits/min). Please upgrade your membership!"
+                )
+            if current_user.remaining_call_time >= duration_minutes:
+                current_user.remaining_call_time -= duration_minutes
+            current_user.credits -= total_cost
 
     message = ChatMessage(
         sender_id=current_user.id,
