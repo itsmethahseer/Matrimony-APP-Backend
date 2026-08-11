@@ -200,12 +200,12 @@ def add_photo(
     if photo_in.is_main:
         db.query(Photo).filter(Photo.user_id == current_user.id).update({"is_main": False})
         
-    # By default, photo approval requires admin. Let's default to True for mock verification purposes.
+    # Newly uploaded user photos require admin approval (is_approved=False until verified)
     photo = Photo(
         user_id=current_user.id,
         url=photo_in.url,
         is_main=photo_in.is_main,
-        is_approved=True 
+        is_approved=True if current_user.is_admin else False
     )
     db.add(photo)
     db.commit()

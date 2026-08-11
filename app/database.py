@@ -75,6 +75,13 @@ def run_auto_migrations(engine_instance):
                     conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS credits INTEGER DEFAULT 25;"))
             except Exception:
                 pass
+            try:
+                if "sqlite" in str(engine_instance.url):
+                    conn.execute(text("ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT FALSE;"))
+                else:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE;"))
+            except Exception:
+                pass
     except Exception as err:
         logger.warning(f"Auto-migration failed: {err}")
 

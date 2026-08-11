@@ -4,7 +4,7 @@ from app.database import engine, Base
 from app.config import settings
 
 # Import routers
-from app.routers import auth, profile, explore, inbox, menu
+from app.routers import auth, profile, explore, inbox, menu, admin
 
 # Import all models to ensure they are registered with Base for auto-creation
 from app.models.user import User
@@ -43,6 +43,7 @@ app.include_router(profile.router, prefix="/api")
 app.include_router(explore.router, prefix="/api")
 app.include_router(inbox.router, prefix="/api")
 app.include_router(menu.router, prefix="/api")
+app.include_router(admin.router, prefix="/api")
 
 @app.get("/")
 def read_root():

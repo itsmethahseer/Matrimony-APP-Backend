@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "supersecretkeymatrimonyapplication12345!"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
-    PROJECT_NAME: str = "Matrimony API"
+    PROJECT_NAME: str = "HelpMeet Matrimony API"
     
     # UPI Payments Config
     MERCHANT_UPI_ID: str = "matrimonyapp@upi"

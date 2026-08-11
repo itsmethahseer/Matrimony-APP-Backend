@@ -142,10 +142,21 @@ If you prefer to run the FastAPI app locally outside of Docker (while keeping Po
 
 ### ⚙️ Sidebar Menu & Subscriptions (`/api/menu`)
 * `GET /api/menu/summary`: Returns sidebar info: Name, ID, membership status, plan type, remaining contact views, remaining message credits, remaining call minutes, and validity.
-* `POST /api/menu/subscribe`: Subscribe/Upgrade plan (Silver, Gold, or Platinum). replenishes communication quotas and sets expiration datetime.
+* `POST /api/menu/subscribe`: Subscribe/Upgrade plan:
+  - **Silver Plan**: ₹299 (20 contact views, 200 messages, 60 mins calls, 30 days validity)
+  - **Gold Plan**: ₹1,299 (100 contact views, 1000 messages, 300 mins calls, 90 days validity)
+  - **Platinum Plan**: ₹2,499 (9999 contact views, 9999 messages, 1000 mins calls, 180 days validity)
 * `POST /api/menu/renew`: Renew/extend the current plan.
 * `PUT /api/menu/settings`: Modify user credentials (email, password, activation state).
 * `GET /api/menu/notifications`: View system announcements/notifications.
 * `POST /api/menu/link-device`: Pair a secondary web device using a shortcode.
 * `POST /api/menu/feedback`: Submit application rating and comments.
 * `GET /api/menu/support`: View support contacts and FAQ.
+
+### 🛡️ Admin Console & Verification (`/api/admin`)
+* `GET /api/admin/pending-verifications`: List pending user identity verification documents and pending profile photos awaiting approval.
+* `POST /api/admin/verify-id/{user_id}`: Validate ID document with body `{"action": "approve" | "reject"}`. Updates status to "Verified" or "Rejected".
+* `POST /api/admin/verify-photo/{photo_id}`: Validate uploaded profile photo with body `{"action": "approve" | "reject"}`. Approves photo (`is_approved = True`) or removes rejected photo.
+* `GET /api/admin/users`: Overview of all registered users, verification status, and unapproved photo counts.
+* `POST /api/admin/toggle-admin/{user_id}`: Toggle admin access for a user.
+

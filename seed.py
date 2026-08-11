@@ -23,6 +23,8 @@ def seed_db():
         
         # 1. Create Users
         users_data = [
+            # Admin User
+            {"email": "admin@matrimony.com", "password": "admin123", "membership_status": "Premium", "plan_type": "Platinum", "views": 9999, "messages": 9999, "calls": 1000, "is_admin": True},
             # Main Test User (Male, Free)
             {"email": "ahmed@example.com", "password": "password123", "membership_status": "Free", "plan_type": None, "views": 5, "messages": 5, "calls": 0},
             # Main Test User 2 (Female, Premium)
@@ -31,8 +33,8 @@ def seed_db():
             {"email": "aisha@example.com", "password": "password123", "membership_status": "Free", "plan_type": None, "views": 5, "messages": 5, "calls": 0},
             {"email": "zainab@example.com", "password": "password123", "membership_status": "Premium", "plan_type": "Silver", "views": 20, "messages": 200, "calls": 60},
             {"email": "yasmin@example.com", "password": "password123", "membership_status": "Free", "plan_type": None, "views": 5, "messages": 5, "calls": 0},
-            {"email": "mariam@example.com", "password": "password123", "membership_status": "Free", "plan_type": None, "views": 5, "messages": 5, "calls": 0},
-            {"email": "bilal@example.com", "password": "password123", "membership_status": "Free", "plan_type": None, "views": 5, "messages": 5, "calls": 0},
+            {"email": "mariam@example.com", "password": "password123", "membership_status": "Free", "plan_type": None, "views": 5, "messages": 5, "calls": 0, "id_status": "Pending", "doc_url": "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80"},
+            {"email": "bilal@example.com", "password": "password123", "membership_status": "Free", "plan_type": None, "views": 5, "messages": 5, "calls": 0, "id_status": "Pending", "doc_url": "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=600&q=80"},
             {"email": "yousef@example.com", "password": "password123", "membership_status": "Premium", "plan_type": "Platinum", "views": 9999, "messages": 9999, "calls": 1000},
             # Dedicated Interest Tester Users
             {"email": "interest_tester_male@example.com", "password": "password123", "membership_status": "Free", "plan_type": None, "views": 10, "messages": 10, "calls": 0},
@@ -44,6 +46,7 @@ def seed_db():
             user = User(
                 email=ud["email"],
                 hashed_password=get_password_hash(ud["password"]),
+                is_admin=ud.get("is_admin", False),
                 membership_status=ud["membership_status"],
                 plan_type=ud["plan_type"],
                 remaining_contact_views=ud["views"],
@@ -51,8 +54,9 @@ def seed_db():
                 remaining_call_time=ud["calls"],
                 credits=9999 if ud["views"] == 9999 else ud["views"] * 5,
                 plan_validity=datetime.datetime.utcnow() + datetime.timedelta(days=90) if ud["plan_type"] else None,
-                id_verification_status="Verified" if ud["email"] in ["ahmed@example.com", "fatima@example.com", "yousef@example.com"] else "Unverified",
-                last_active_at=datetime.datetime.utcnow() - datetime.timedelta(minutes=3) if ud["email"] in ["ahmed@example.com", "aisha@example.com", "yousef@example.com"] else datetime.datetime.utcnow() - datetime.timedelta(hours=2)
+                id_verification_status=ud.get("id_status", "Verified" if ud["email"] in ["ahmed@example.com", "fatima@example.com", "yousef@example.com", "admin@matrimony.com"] else "Unverified"),
+                id_verification_document_url=ud.get("doc_url", None),
+                last_active_at=datetime.datetime.utcnow() - datetime.timedelta(minutes=3) if ud["email"] in ["ahmed@example.com", "aisha@example.com", "yousef@example.com", "admin@matrimony.com"] else datetime.datetime.utcnow() - datetime.timedelta(hours=2)
             )
             db.add(user)
             db.commit()
@@ -360,10 +364,19 @@ def seed_db():
             # Additional Tester Users
             {"user_id": users_dict["interest_tester_male@example.com"].id, "url": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=800&q=80", "is_main": True},
             {"user_id": users_dict["interest_tester_female@example.com"].id, "url": "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=800&q=80", "is_main": True},
+
+            # Pending Verification Photos for Admin Console Testing
+            {"user_id": users_dict["mariam@example.com"].id, "url": "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=800&q=80", "is_main": False, "is_approved": False},
+            {"user_id": users_dict["bilal@example.com"].id, "url": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=800&q=80", "is_main": False, "is_approved": False},
         ]
         
         for p in photos_data:
-            photo = Photo(user_id=p["user_id"], url=p["url"], is_main=p["is_main"], is_approved=True)
+            photo = Photo(
+                user_id=p["user_id"], 
+                url=p["url"], 
+                is_main=p["is_main"], 
+                is_approved=p.get("is_approved", True)
+            )
             db.add(photo)
         db.commit()
         print("Profile photos added!")
