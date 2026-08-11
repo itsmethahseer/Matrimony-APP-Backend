@@ -119,35 +119,33 @@ def google_auth(request: GoogleAuthRequest, db: Session = Depends(get_db)):
     access_token = create_access_token(subject=user.id)
     return {"access_token": access_token, "token_type": "bearer"}
 
+from app.services.otp_service import send_phone_otp, verify_phone_otp
+
 @router.post("/send-otp")
 def send_otp(request: SendOTPRequest):
     phone = request.phone_number.strip()
     if not phone:
         raise HTTPException(status_code=400, detail="Phone number is required.")
     
-    # Store fixed OTP code 123456 for test ease, or generate
-    OTP_STORE[phone] = "123456"
-    return {
-        "message": f"OTP sent to {phone} successfully via SMS/WhatsApp.",
-        "otp_debug": "123456"
-    }
+    res = send_phone_otp(phone)
+    return res
 
 @router.post("/verify-otp", response_model=Token)
 def verify_otp(request: VerifyOTPRequest, db: Session = Depends(get_db)):
     phone = request.phone_number.strip()
     code = request.otp_code.strip()
     
-    stored_code = OTP_STORE.get(phone)
-    if code != "123456" and code != stored_code:
-        raise HTTPException(status_code=400, detail="Invalid OTP code. Please enter 123456.")
+    if not verify_phone_otp(phone, code):
+        raise HTTPException(status_code=400, detail="Invalid OTP code. Please check your OTP code and try again.")
     
     # Find or register user
     user = db.query(User).filter(User.phone_number == phone).first()
     if not user:
         user = User(
+            email=f"{phone}@user.local",
             phone_number=phone,
             auth_provider="phone",
-            hashed_password=None,
+            hashed_password=get_password_hash("OTP_PHONE_AUTH_USER"),
         )
         db.add(user)
         db.commit()
