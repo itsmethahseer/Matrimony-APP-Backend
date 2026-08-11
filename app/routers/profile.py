@@ -261,15 +261,35 @@ def delete_photo(
     db.commit()
     return None
 
+@router.get("/user/{user_id}", response_model=ProfileResponse)
+def get_profile_by_user_id(
+    user_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    profile = db.query(Profile).filter(Profile.user_id == user_id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+        
+    # Check if blocked
+    blocked = db.query(Block).filter(
+        or_(
+            and_(Block.blocker_id == current_user.id, Block.blocked_id == profile.user_id),
+            and_(Block.blocker_id == profile.user_id, Block.blocked_id == current_user.id)
+        )
+    ).first()
+    if blocked:
+        raise HTTPException(status_code=403, detail="Access denied. Profile is blocked.")
+        
+    return ProfileResponse.model_validate(profile)
+
 @router.get("/{profile_id}", response_model=ProfileResponse)
 def get_profile_by_id(
     profile_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    profile = db.query(Profile).filter(
-        or_(Profile.id == profile_id, Profile.user_id == profile_id)
-    ).first()
+    profile = db.query(Profile).filter(Profile.id == profile_id).first()
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
         
