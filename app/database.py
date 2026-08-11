@@ -82,6 +82,14 @@ def run_auto_migrations(engine_instance):
                     conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE;"))
             except Exception:
                 pass
+            for user_col, col_type in [("phone_number", "VARCHAR"), ("google_id", "VARCHAR"), ("auth_provider", "VARCHAR DEFAULT 'email'")]:
+                try:
+                    if "sqlite" in str(engine_instance.url):
+                        conn.execute(text(f"ALTER TABLE users ADD COLUMN {user_col} {col_type};"))
+                    else:
+                        conn.execute(text(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {user_col} {col_type};"))
+                except Exception:
+                    pass
     except Exception as err:
         logger.warning(f"Auto-migration failed: {err}")
 

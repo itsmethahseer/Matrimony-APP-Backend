@@ -3,13 +3,42 @@ from typing import Optional, List
 import datetime
 
 class UserBase(BaseModel):
-    email: EmailStr
+    email: Optional[str] = None
+    phone_number: Optional[str] = None
 
-class UserCreate(UserBase):
+class UserCreate(BaseModel):
+    email: str
     password: str
 
-class UserLogin(UserBase):
+class UserLogin(BaseModel):
+    email: str
     password: str
+
+class GoogleAuthRequest(BaseModel):
+    email: str
+    google_id: str
+    name: Optional[str] = None
+    photo_url: Optional[str] = None
+
+class SendOTPRequest(BaseModel):
+    phone_number: str
+
+class VerifyOTPRequest(BaseModel):
+    phone_number: str
+    otp_code: str
+
+class FirebasePhoneAuthRequest(BaseModel):
+    id_token: str
+    phone_number: str
+
+class ForgotPasswordRequest(BaseModel):
+    identifier: str # Email or Phone/WhatsApp number
+    method: str = "email" # "email" or "whatsapp"
+
+class ResetPasswordRequest(BaseModel):
+    identifier: str
+    reset_token: str # OTP or token
+    new_password: str
 
 class Token(BaseModel):
     access_token: str
@@ -19,8 +48,12 @@ class TokenData(BaseModel):
     email: Optional[str] = None
     user_id: Optional[int] = None
 
-class UserResponse(UserBase):
+class UserResponse(BaseModel):
     id: int
+    email: Optional[str] = None
+    phone_number: Optional[str] = None
+    google_id: Optional[str] = None
+    auth_provider: Optional[str] = "email"
     is_active: bool
     is_admin: bool = False
     created_at: datetime.datetime
