@@ -13,15 +13,28 @@ from app.utils.deps import get_current_user
 
 router = APIRouter(prefix="/profiles", tags=["Profiles"])
 
+def get_or_create_profile(user: User, db: Session) -> Profile:
+    profile = db.query(Profile).filter(Profile.user_id == user.id).first()
+    if not profile:
+        profile_name = "Admin User" if user.is_admin else (user.email.split("@")[0].capitalize() if user.email else f"Member_{user.id}")
+        profile = Profile(
+            user_id=user.id,
+            name=profile_name,
+            age=25,
+            gender="Male",
+            marital_status="Never Married"
+        )
+        db.add(profile)
+        db.commit()
+        db.refresh(profile)
+    return profile
+
 @router.get("/me", response_model=ProfileResponse)
 def get_my_profile(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
-    if not profile:
-        raise HTTPException(status_code=404, detail="Profile not found")
-    return profile
+    return get_or_create_profile(current_user, db)
 
 @router.put("/me", response_model=ProfileResponse)
 def update_my_profile(
@@ -29,9 +42,7 @@ def update_my_profile(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
-    if not profile:
-        raise HTTPException(status_code=404, detail="Profile not found")
+    profile = get_or_create_profile(current_user, db)
     
     update_data = profile_in.model_dump(exclude_unset=True)
     for field, value in update_data.items():
@@ -47,10 +58,8 @@ def get_matches(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    # Ensure current user has a profile
-    my_profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
-    if not my_profile:
-        raise HTTPException(status_code=404, detail="Profile not found")
+    # Ensure current user has a profile (auto-creates if missing)
+    my_profile = get_or_create_profile(current_user, db)
 
     # Get list of blocked user IDs (both blocked by current user and those who blocked current user)
     blocked_ids = db.query(Block.blocked_id).filter(Block.blocker_id == current_user.id).all()
@@ -258,7 +267,9 @@ def get_profile_by_id(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    profile = db.query(Profile).filter(Profile.id == profile_id).first()
+    profile = db.query(Profile).filter(
+        or_(Profile.id == profile_id, Profile.user_id == profile_id)
+    ).first()
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
         
