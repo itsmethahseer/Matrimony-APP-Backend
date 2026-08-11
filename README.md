@@ -1,12 +1,12 @@
-# Matrimony Application - FastAPI Backend
+# HelpMeet Matrimony Application - FastAPI Backend
 
-A complete, feature-rich FastAPI backend developed for a premium matrimony application. It integrates user authentication, comprehensive user profiles, interactions (interests, visits, contact views, blocking, passing, favourites, and private notes), real-time chat/requests/calls logs, and membership management (Silver, Gold, Platinum subscription quotas).
+A complete, feature-rich FastAPI backend developed for **HelpMeet** - a premium matrimony application. It integrates user authentication, comprehensive user profiles, dynamic match discovery, interactions (interests, visits, contact views, blocking, passing, favourites, and private notes), real-time chat/requests/calls logs, membership quota management (Silver, Gold, Platinum plans), and an Administrative Console for user identity and photo validation.
 
 > 💡 **Production Deployment**: See [HOSTING.md](./HOSTING.md) for the low-cost cloud hosting strategy (Oracle Cloud Free Tier, Cloudflare Pages/R2, Hetzner, and Expo EAS).
 
 ---
 
-## Architecture & Directory Layout
+## 🏗️ Architecture & Directory Layout
 
 ```
 backend/
@@ -14,10 +14,10 @@ backend/
 │   ├── __init__.py
 │   ├── main.py            # FastAPI initialization, CORS, router bindings
 │   ├── config.py          # Pydantic Settings configuration from .env
-│   ├── database.py        # SQLAlchemy engine and SessionLocal setup
+│   ├── database.py        # SQLAlchemy engine, SessionLocal, and auto-migrations
 │   ├── models/            # SQLAlchemy database schemas
 │   │   ├── __init__.py
-│   │   ├── user.py        # Account, membership details, verification status
+│   │   ├── user.py        # Account, admin role, membership details, verification status
 │   │   ├── profile.py     # Profile categories, physical, religious, partner preferences
 │   │   ├── interaction.py # Interests, visits, contact views, favourites, blocks, notes, passes
 │   │   └── chat.py        # Chats, requests, and call log histories
@@ -27,136 +27,92 @@ backend/
 │   │   ├── profile.py
 │   │   ├── interaction.py
 │   │   └── chat.py
-│   ├── routers/           # API endpoints (endpoints return JSON/schemas)
+│   ├── routers/           # API endpoints (return JSON/schemas)
 │   │   ├── __init__.py
 │   │   ├── auth.py        # Registration, login, identity verification
-│   │   ├── profile.py     # Matches matching, photos, custom profile search
+│   │   ├── profile.py     # Matches, photo uploads, custom profile search
 │   │   ├── explore.py     # Interests, visits, contact views, blocks, notes
 │   │   ├── inbox.py       # Message exchanges, call logs, online-only filtering
-│   │   └── menu.py        # Membership plans, renewal, billing, notifications
+│   │   ├── menu.py        # Subscription plans, renewal, billing, notifications
+│   │   └── admin.py      # Admin verification endpoints for ID docs and photos
 │   └── utils/
 │       ├── __init__.py
 │       ├── security.py    # BCrypt hashing, JWT token operations
 │       └── deps.py        # Session auth & active state updater dependency
-├── requirements.txt       # Project dependencies
-├── docker-compose.yml     # Standalone PostgreSQL database
+├── requirements.txt       # Python dependencies
+├── docker-compose.yml     # Standalone PostgreSQL database & web app
 └── seed.py                # Database tables builder & dummy mock data loader
 ```
 
 ---
 
-## Getting Started (Docker Compose)
+## 💳 Subscriptions & Dynamic Quota System
+
+Subscriptions replenish user contact view credits, messaging balance, call minutes, and validity:
+
+* **Silver Plan**: **₹299** (20 Contact Views, 200 Messages, 60 Call Mins, 30 Days Validity)
+* **Gold Plan**: **₹1,299** (100 Contact Views, 1000 Messages, 300 Call Mins, 90 Days Validity)
+* **Platinum Plan**: **₹2,499** (9999 Contact Views, 9999 Messages, 1000 Call Mins, 180 Days Validity)
+
+---
+
+## 🚀 Getting Started (Docker Compose)
 
 ### 1. Build and Start the Application
-You can build and spin up both the PostgreSQL database and the FastAPI application using Docker Compose:
+Spin up both the PostgreSQL database and the FastAPI backend:
 ```bash
 docker compose up -d --build
 ```
-This starts:
-- **FastAPI Backend (`web`):** Running on port `8000`
-- **PostgreSQL Database (`db`):** Running internally for the web container and mapped to port `5435` on your host.
+- **FastAPI Backend (`web`):** [http://127.0.0.1:8000](http://127.0.0.1:8000)
+- **PostgreSQL Database (`db`):** Mapped internally and exposed on port `5435`.
 
 ### 2. Seed the Database
-Run the seed script directly inside the running FastAPI container to create tables and populate them with sample data (users, matches, photos, notes, interests, and chats):
+Run the seed script inside the running container to initialize tables and sample data:
 ```bash
 docker compose exec web python seed.py
 ```
 
 ### 3. Access API Documentation
-Once started, navigate to:
 * **Interactive OpenAPI docs (Swagger UI):** [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 * **Alternative API docs (Redoc):** [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
 
 ---
 
-## Local Development (Optional)
-If you prefer to run the FastAPI app locally outside of Docker (while keeping PostgreSQL in Docker):
+## 🔑 Default Test Accounts
 
-1. Start only the database: `docker compose up -d db`
-2. Create and activate a python virtual environment:
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate
-   pip install -r requirements.txt
-   ```
-3. Run the seed script: `python seed.py`
-4. Start the development server: `uvicorn app.main:app --reload`
-
+- **Admin Account**: `admin@matrimony.com` / `admin123`
+- **Male User**: `ahmed@example.com` / `password123`
+- **Female User**: `fatima@example.com` / `password123`
 
 ---
 
-## Detailed API Specifications
+## 🛡️ Detailed API Specifications
 
 ### 🔑 Authentication (`/api/auth`)
-* `POST /api/auth/register`: Register email + password (automatically creates default Profile).
-* `POST /api/auth/login`: Form login returning bearer JWT access token.
-* `GET /api/auth/me`: Get current logged-in user's details and active state.
+* `POST /api/auth/register`: Register email + password.
+* `POST /api/auth/login`: Form login returning JWT token.
+* `GET /api/auth/me`: Get current logged-in user details.
 * `POST /api/auth/verify-id`: Submit verification document (sets status to "Pending").
 
 ### 👤 Profiles & Matches (`/api/profiles`)
 * `GET /api/profiles/me`: Preview my own profile.
-* `PUT /api/profiles/me`: Update profile (supports partial updates of educational, physical, lifestyle, socio-religious details, etc.).
-* `GET /api/profiles/matches`: Get matching profiles opposite to user's gender. Supports `category` query param:
-  - `my_matches`: Matches based on partner preferences (age, height, religion).
-  - `new_matches`: Profiles registered in the last 7 days.
-  - `location`: Profiles sharing the user's city/present location.
-  - `profession`: Profiles sharing the user's job sector/profession.
-  - `differently_abled`: Profiles marked as differently abled.
-  - `orphan_poor_girls`: Profiles flagged in the orphan or poor girls category.
-* `GET /api/profiles/search`: Custom search filter query (age ranges, religion, sect, location, profession, differently abled).
-* `GET /api/profiles/{profile_id}`: View specific profile (automatically registers a **Profile Visit**).
-* `POST /api/profiles/photos`: Upload a photo URL (can designate as `is_main`).
+* `PUT /api/profiles/me`: Update profile details.
+* `GET /api/profiles/matches`: Get matching profiles (opposite gender).
+* `GET /api/profiles/search`: Custom search filter query (age, religion, sect, location, profession).
+* `POST /api/profiles/photos`: Upload a photo. Defaults to `is_approved = False` for admin verification.
 * `GET /api/profiles/photos`: View list of uploaded photos.
 * `DELETE /api/profiles/photos/{photo_id}`: Delete an uploaded photo.
 
 ### 🧭 Explore & Interactions (`/api/explore`)
-* `POST /api/explore/interests`: Send connection interest request to another profile.
-* `GET /api/explore/interests/received`: List received interest requests.
-* `GET /api/explore/interests/sent`: List sent interest requests.
-* `PUT /api/explore/interests/{interest_id}`: Accept/Decline a received interest.
-* `GET /api/explore/visits/my-visitors`: View users who visited my profile.
-* `GET /api/explore/visits/visited-by-me`: View profiles I visited.
-* `POST /api/explore/contact-views/{target_user_id}`: Request contact details. *Decrements remaining views quota; returns 403 if quota is 0.*
-* `GET /api/explore/contact-views/viewed-by-me`: List profiles whose contacts I viewed.
-* `GET /api/explore/contact-views/my-viewers`: List users who viewed my contact info.
+* `POST /api/explore/interests`: Send connection interest request.
+* `GET /api/explore/interests/received`: Received interest requests.
+* `GET /api/explore/interests/sent`: Sent interest requests.
+* `POST /api/explore/contact-views/{target_user_id}`: Unlock contact details.
 * `POST /api/explore/favourites`: Add profile to favourites.
-* `GET /api/explore/favourites`: Get favourited profiles.
-* `DELETE /api/explore/favourites/{target_user_id}`: Remove profile from favourites.
-* `POST /api/explore/notes`: Add or update a private note about a profile.
-* `GET /api/explore/notes/{profile_id}`: Get my private note about a profile.
-* `DELETE /api/explore/notes/{note_id}`: Delete a private note.
-* `POST /api/explore/blocked`: Block a user (hides profile and removes all mutual interest/favourite logs).
-* `GET /api/explore/blocked`: List blocked users.
-* `DELETE /api/explore/blocked/{target_user_id}`: Unblock a user.
-* `POST /api/explore/passed`: Pass (hide) a user from main matches.
-* `GET /api/explore/passed`: List passed profiles.
-
-### 📥 Inbox & Messages (`/api/inbox`)
-* `POST /api/inbox/messages`: Send chat message, request, or call log. *Free accounts check message limits; call logs check remaining call time balance.*
-* `GET /api/inbox/conversations`: Get list of unique conversations (includes last message, unread count, participant info, and online status).
-* `GET /api/inbox/conversations/{participant_id}`: Get complete message timeline history. Marks unread messages as read.
-* `GET /api/inbox/all`: List messages with optional `online_now=true` query filter.
-* `GET /api/inbox/chats`: List messages of type `chat` with `online_now=true` query filter.
-* `GET /api/inbox/requests`: List connection requests with `online_now=true` query filter.
-* `GET /api/inbox/calls`: List calls logs with `online_now=true` query filter.
-
-### ⚙️ Sidebar Menu & Subscriptions (`/api/menu`)
-* `GET /api/menu/summary`: Returns sidebar info: Name, ID, membership status, plan type, remaining contact views, remaining message credits, remaining call minutes, and validity.
-* `POST /api/menu/subscribe`: Subscribe/Upgrade plan:
-  - **Silver Plan**: ₹299 (20 contact views, 200 messages, 60 mins calls, 30 days validity)
-  - **Gold Plan**: ₹1,299 (100 contact views, 1000 messages, 300 mins calls, 90 days validity)
-  - **Platinum Plan**: ₹2,499 (9999 contact views, 9999 messages, 1000 mins calls, 180 days validity)
-* `POST /api/menu/renew`: Renew/extend the current plan.
-* `PUT /api/menu/settings`: Modify user credentials (email, password, activation state).
-* `GET /api/menu/notifications`: View system announcements/notifications.
-* `POST /api/menu/link-device`: Pair a secondary web device using a shortcode.
-* `POST /api/menu/feedback`: Submit application rating and comments.
-* `GET /api/menu/support`: View support contacts and FAQ.
+* `POST /api/explore/notes`: Add or update a private note.
 
 ### 🛡️ Admin Console & Verification (`/api/admin`)
-* `GET /api/admin/pending-verifications`: List pending user identity verification documents and pending profile photos awaiting approval.
-* `POST /api/admin/verify-id/{user_id}`: Validate ID document with body `{"action": "approve" | "reject"}`. Updates status to "Verified" or "Rejected".
-* `POST /api/admin/verify-photo/{photo_id}`: Validate uploaded profile photo with body `{"action": "approve" | "reject"}`. Approves photo (`is_approved = True`) or removes rejected photo.
-* `GET /api/admin/users`: Overview of all registered users, verification status, and unapproved photo counts.
-* `POST /api/admin/toggle-admin/{user_id}`: Toggle admin access for a user.
-
+* `GET /api/admin/pending-verifications`: List pending identity documents and unapproved profile photos.
+* `POST /api/admin/verify-id/{user_id}`: Validate ID document (`{"action": "approve" | "reject"}`).
+* `POST /api/admin/verify-photo/{photo_id}`: Validate profile photo (`{"action": "approve" | "reject"}`).
+* `GET /api/admin/users`: Overview of all registered users and verification statuses.
