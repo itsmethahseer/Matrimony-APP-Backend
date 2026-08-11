@@ -167,17 +167,18 @@ def view_contact_details(
     ).first()
 
     if not existing:
-        cost = get_action_credit_cost(current_user.plan_type, "contact_view")
-        if current_user.credits < cost:
-            raise HTTPException(
-                status_code=403,
-                detail=f"Insufficient credits remaining. Unlocking contact details requires {cost} credits. Please upgrade your membership!"
-            )
-        
-        # Decrement limit
-        if current_user.remaining_contact_views > 0:
-            current_user.remaining_contact_views -= 1
-        current_user.credits -= cost
+        if not current_user.is_admin:
+            cost = get_action_credit_cost(current_user.plan_type, "contact_view")
+            if current_user.credits < cost:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Insufficient credits remaining. Unlocking contact details requires {cost} credits. Please upgrade your membership!"
+                )
+            
+            # Decrement limit
+            if current_user.remaining_contact_views > 0:
+                current_user.remaining_contact_views -= 1
+            current_user.credits -= cost
         
         # Log view
         existing = ContactView(viewer_id=current_user.id, viewed_id=target_user_id)

@@ -51,6 +51,20 @@ def get_menu_summary(
             db.commit()
             db.refresh(current_user)
 
+    if current_user.is_admin:
+        return MenuSummaryResponse(
+            name=name,
+            user_id=current_user.id,
+            membership_status="Admin",
+            plan_type="Administrator",
+            remaining_contact_views=9999,
+            remaining_messages=9999,
+            remaining_call_time=9999,
+            credits=9999,
+            plan_validity=None,
+            is_expired=False
+        )
+
     return MenuSummaryResponse(
         name=name,
         user_id=current_user.id,

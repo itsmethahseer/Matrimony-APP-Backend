@@ -41,8 +41,9 @@ def send_message(
     if blocked:
         raise HTTPException(status_code=403, detail="Cannot send message. User has blocked you or is blocked.")
 
-    # Check quotas and deduct credits
-    if msg_in.message_type == "chat":
+    # Check quotas and deduct credits (Skipped for Admin users)
+    if not current_user.is_admin:
+        if msg_in.message_type == "chat":
         cost = get_action_credit_cost(current_user.plan_type, "send_message")
         if current_user.credits < cost:
             raise HTTPException(
