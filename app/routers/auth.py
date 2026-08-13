@@ -71,7 +71,7 @@ def login_user(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = D
     if not matching_user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email/phone or password",
+            detail="Entered incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
     elif not matching_user.is_active:
@@ -121,49 +121,33 @@ def google_auth(request: GoogleAuthRequest, db: Session = Depends(get_db)):
 
 from app.services.otp_service import send_phone_otp, verify_phone_otp
 
+# Mobile OTP Authentication (Temporarily Disabled - can be re-integrated later)
 @router.post("/send-otp")
 def send_otp(request: SendOTPRequest):
-    phone = request.phone_number.strip()
-    if not phone:
-        raise HTTPException(status_code=400, detail="Phone number is required.")
-    
-    res = send_phone_otp(phone)
-    return res
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="Mobile OTP authentication is currently disabled. Please log in or register using Email or Google."
+    )
+    # Preservation for future re-integration:
+    # phone = request.phone_number.strip()
+    # if not phone:
+    #     raise HTTPException(status_code=400, detail="Phone number is required.")
+    # res = send_phone_otp(phone)
+    # return res
 
 @router.post("/verify-otp", response_model=Token)
 def verify_otp(request: VerifyOTPRequest, db: Session = Depends(get_db)):
-    phone = request.phone_number.strip()
-    code = request.otp_code.strip()
-    
-    if not verify_phone_otp(phone, code):
-        raise HTTPException(status_code=400, detail="Invalid OTP code. Please check your OTP code and try again.")
-    
-    # Find or register user
-    user = db.query(User).filter(User.phone_number == phone).first()
-    if not user:
-        user = User(
-            email=f"{phone}@user.local",
-            phone_number=phone,
-            auth_provider="phone",
-            hashed_password=get_password_hash("OTP_PHONE_AUTH_USER"),
-        )
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-
-        suffix = phone[-4:] if len(phone) >= 4 else "User"
-        profile = Profile(
-            user_id=user.id,
-            name=f"Member_{suffix}",
-            age=24,
-            gender="Male",
-            marital_status="Never Married"
-        )
-        db.add(profile)
-        db.commit()
-        
-    access_token = create_access_token(subject=user.id)
-    return {"access_token": access_token, "token_type": "bearer"}
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="Mobile OTP authentication is currently disabled. Please log in or register using Email or Google."
+    )
+    # Preservation for future re-integration:
+    # phone = request.phone_number.strip()
+    # code = request.otp_code.strip()
+    # if not verify_phone_otp(phone, code):
+    #     raise HTTPException(status_code=400, detail="Invalid OTP code.")
+    # user = db.query(User).filter(User.phone_number == phone).first()
+    # ...
 
 @router.post("/forgot-password")
 def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_db)):
