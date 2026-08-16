@@ -1,40 +1,36 @@
-import urllib.request
-import urllib.parse
 import json
 import sys
+from fastapi.testclient import TestClient
+from app.main import app
 
-BASE_URL = "http://localhost:8000"
+client = TestClient(app)
 headers = {}
 
 def make_request(method, path, data=None, is_json=True, is_form=False):
-    url = f"{BASE_URL}{path}"
     req_headers = headers.copy()
     
-    req_data = None
-    if data:
-        if is_json:
-            req_data = json.dumps(data).encode("utf-8")
-            req_headers["Content-Type"] = "application/json"
-        elif is_form:
-            req_data = urllib.parse.urlencode(data).encode("utf-8")
-            req_headers["Content-Type"] = "application/x-www-form-urlencoded"
-            
-    req = urllib.request.Request(url, data=req_data, headers=req_headers, method=method)
-    
+    if method == "GET":
+        res = client.get(path, headers=req_headers)
+    elif method == "POST":
+        if is_form:
+            res = client.post(path, data=data, headers=req_headers)
+        else:
+            res = client.post(path, json=data, headers=req_headers)
+    elif method == "PUT":
+        if is_form:
+            res = client.put(path, data=data, headers=req_headers)
+        else:
+            res = client.put(path, json=data, headers=req_headers)
+    elif method == "DELETE":
+        res = client.delete(path, headers=req_headers)
+    else:
+        res = client.request(method, path, headers=req_headers)
+        
     try:
-        with urllib.request.urlopen(req) as response:
-            status = response.status
-            body = response.read().decode("utf-8")
-            return status, json.loads(body) if body else None
-    except urllib.error.HTTPError as e:
-        body = e.read().decode("utf-8")
-        try:
-            err_json = json.loads(body)
-        except:
-            err_json = body
-        return e.code, err_json
-    except Exception as e:
-        return 0, str(e)
+        body = res.json()
+    except Exception:
+        body = res.text
+    return res.status_code, body
 
 def run_tests():
     global headers
@@ -291,6 +287,42 @@ def run_tests():
         print("✓ Uploaded profile photo deleted successfully.")
     else:
         print(f"✗ Delete photo failed: {status} - {res}")
+        sys.exit(1)
+
+    # Test 24: Send Interest Request
+    print(f"\n[Test 24] Sending Interest Request to User {target_id}...")
+    interest_data = {"receiver_id": target_id}
+    status, interest_res = make_request("POST", "/api/explore/interests", data=interest_data)
+    if status == 201 and interest_res.get("status") == "Pending":
+        print(f"✓ Interest sent successfully. Interest ID: {interest_res['id']}, Status: {interest_res['status']}")
+    else:
+        print(f"✗ Send interest failed: {status} - {interest_res}")
+        sys.exit(1)
+
+    # Test 25: Check Interest Status
+    print(f"\n[Test 25] Checking Interest Status for User {target_id}...")
+    status, interest_status = make_request("GET", f"/api/explore/interests/status/{target_id}")
+    if status == 200 and interest_status.get("sent") and interest_status["sent"]["status"] == "Pending":
+        print(f"✓ Interest status retrieved: Sent is Pending (ID: {interest_status['sent']['id']})")
+    else:
+        print(f"✗ Check interest status failed: {status} - {interest_status}")
+        sys.exit(1)
+
+    # Test 26: Cancel Pending Interest Request
+    print(f"\n[Test 26] Cancelling Pending Interest ID {interest_res['id']}...")
+    status, cancel_res = make_request("DELETE", f"/api/explore/interests/{interest_res['id']}")
+    if status == 200 and cancel_res.get("refunded_credits") is not None:
+        print(f"✓ Interest cancelled successfully. Refunded credits: {cancel_res['refunded_credits']}")
+    else:
+        print(f"✗ Cancel interest failed: {status} - {cancel_res}")
+        sys.exit(1)
+
+    # Test 27: Verify interest is removed
+    status, interest_status_after = make_request("GET", f"/api/explore/interests/status/{target_id}")
+    if status == 200 and interest_status_after.get("sent") is None:
+        print("✓ Verified interest record has been removed after cancellation.")
+    else:
+        print(f"✗ Interest still exists after cancel: {status} - {interest_status_after}")
         sys.exit(1)
 
     print("\n==================================================")

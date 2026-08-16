@@ -104,9 +104,13 @@ docker compose exec web python seed.py
 * `DELETE /api/profiles/photos/{photo_id}`: Delete an uploaded photo.
 
 ### 🧭 Explore & Interactions (`/api/explore`)
-* `POST /api/explore/interests`: Send connection interest request.
+* `POST /api/explore/interests`: Send connection interest request (deducts action credits).
 * `GET /api/explore/interests/received`: Received interest requests.
 * `GET /api/explore/interests/sent`: Sent interest requests.
+* `GET /api/explore/interests/status/{target_user_id}`: Query active interest & connection state with target user.
+* `PUT /api/explore/interests/{interest_id}`: Respond to received interest (`{"status": "Accepted" | "Declined"}`).
+* `DELETE /api/explore/interests/{interest_id}`: Cancel/withdraw a pending sent interest and refund deducted credits.
+* `DELETE /api/explore/interests/cancel-by-user/{receiver_id}`: Cancel/withdraw a pending sent interest by receiver ID.
 * `POST /api/explore/contact-views/{target_user_id}`: Unlock contact details.
 * `POST /api/explore/favourites`: Add profile to favourites.
 * `POST /api/explore/notes`: Add or update a private note.

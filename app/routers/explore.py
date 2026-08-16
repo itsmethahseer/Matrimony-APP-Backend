@@ -126,6 +126,91 @@ def respond_to_interest(
     db.refresh(interest)
     return interest
 
+@router.delete("/interests/{interest_id}")
+def cancel_interest(
+    interest_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    interest = db.query(Interest).filter(Interest.id == interest_id).first()
+    if not interest:
+        raise HTTPException(status_code=404, detail="Interest request not found.")
+    
+    # Check if the current user is the sender
+    if interest.sender_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You can only cancel interests that you sent.")
+    
+    # Only pending interests can be cancelled (cannot cancel if already accepted or declined)
+    if interest.status != "Pending":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot cancel interest that has already been {interest.status.lower()}."
+        )
+        
+    # Refund credits
+    cost = get_action_credit_cost(current_user.plan_type, "send_interest")
+    current_user.credits += cost
+    
+    db.delete(interest)
+    db.commit()
+    return {"message": "Interest cancelled successfully.", "refunded_credits": cost, "id": interest_id}
+
+@router.delete("/interests/cancel-by-user/{receiver_id}")
+def cancel_interest_by_user(
+    receiver_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    interest = db.query(Interest).filter(
+        Interest.sender_id == current_user.id,
+        Interest.receiver_id == receiver_id
+    ).first()
+    if not interest:
+        raise HTTPException(status_code=404, detail="No sent interest found for this profile.")
+        
+    if interest.status != "Pending":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot cancel interest that has already been {interest.status.lower()}."
+        )
+        
+    cost = get_action_credit_cost(current_user.plan_type, "send_interest")
+    current_user.credits += cost
+    
+    deleted_id = interest.id
+    db.delete(interest)
+    db.commit()
+    return {"message": "Interest cancelled successfully.", "refunded_credits": cost, "id": deleted_id}
+
+@router.get("/interests/status/{target_user_id}")
+def get_interest_status(
+    target_user_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    sent = db.query(Interest).filter(
+        Interest.sender_id == current_user.id,
+        Interest.receiver_id == target_user_id
+    ).first()
+    
+    received = db.query(Interest).filter(
+        Interest.sender_id == target_user_id,
+        Interest.receiver_id == current_user.id
+    ).first()
+    
+    return {
+        "sent": {
+            "id": sent.id,
+            "status": sent.status,
+            "created_at": sent.created_at.isoformat() if sent.created_at else None
+        } if sent else None,
+        "received": {
+            "id": received.id,
+            "status": received.status,
+            "created_at": received.created_at.isoformat() if received.created_at else None
+        } if received else None,
+    }
+
 
 # --- PROFILE VISITS ---
 @router.get("/visits/my-visitors", response_model=List[ProfileVisitResponse])
