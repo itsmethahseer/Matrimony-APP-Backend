@@ -15,7 +15,7 @@ from app.schemas.interaction import (
     NoteResponse, NoteCreate, BlockResponse, BlockCreate, PassResponse, PassCreate
 )
 from app.utils.deps import get_current_user
-from app.utils.credits import get_action_credit_cost
+from app.utils.credits import get_action_credit_cost, is_user_plan_active, is_user_plan_expired
 
 router = APIRouter(prefix="/explore", tags=["Explore & Interactions"])
 
@@ -50,7 +50,13 @@ def send_interest(
         Interest.receiver_id == receiver.id
     ).first()
     if existing:
-        raise HTTPException(status_code=400, detail="Interest already sent.")
+        if existing.status == "Declined":
+            existing.status = "Pending"
+            db.commit()
+            db.refresh(existing)
+            return existing
+        else:
+            raise HTTPException(status_code=400, detail="Interest already sent.")
 
     # Check for existing interest in the opposite direction (from receiver to current user)
     opposite = db.query(Interest).filter(
@@ -69,13 +75,19 @@ def send_interest(
             raise HTTPException(status_code=400, detail="You are already connected with this user.")
 
     # Check cost and deduct credits
-    cost = get_action_credit_cost(current_user.plan_type, "send_interest")
-    if current_user.credits < cost:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Insufficient credits remaining. Sending interest requires {cost} credits. Please upgrade your membership!"
-        )
-    current_user.credits -= cost
+    if not current_user.is_admin:
+        if is_user_plan_expired(current_user):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Your membership plan has expired. Your credits are preserved, but you must recharge or renew your plan to send interest requests."
+            )
+        cost = get_action_credit_cost(current_user.plan_type, "send_interest")
+        if (current_user.credits or 0) < cost:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Insufficient credits remaining. Sending interest requires {cost} credits. Please upgrade your membership!"
+            )
+        current_user.credits -= cost
 
     # Create interest
     interest = Interest(sender_id=current_user.id, receiver_id=receiver.id, status="Pending")
@@ -253,17 +265,31 @@ def view_contact_details(
 
     if not existing:
         if not current_user.is_admin:
+            # Contact views are only allowable for users with an active paid plan
+            if not is_user_plan_active(current_user):
+                if is_user_plan_expired(current_user):
+                    raise HTTPException(
+                        status_code=403,
+                        detail="Your membership plan has expired. Your remaining credits and contact views are preserved, but you must recharge or renew your plan to unlock contact details."
+                    )
+                else:
+                    raise HTTPException(
+                        status_code=403,
+                        detail="Contact views are not available on the Free tier. Please upgrade to a Silver, Gold, or Platinum plan to unlock contact details."
+                    )
+
             cost = get_action_credit_cost(current_user.plan_type, "contact_view")
-            if current_user.credits < cost:
+            if (current_user.remaining_contact_views or 0) <= 0 and (current_user.credits or 0) < cost:
                 raise HTTPException(
                     status_code=403,
-                    detail=f"Insufficient credits remaining. Unlocking contact details requires {cost} credits. Please upgrade your membership!"
+                    detail=f"Insufficient contact views or credits remaining. Unlocking contact details requires {cost} credits. Please recharge your membership!"
                 )
             
             # Decrement limit
-            if current_user.remaining_contact_views > 0:
+            if current_user.remaining_contact_views and current_user.remaining_contact_views > 0:
                 current_user.remaining_contact_views -= 1
-            current_user.credits -= cost
+            elif current_user.credits and current_user.credits >= cost:
+                current_user.credits -= cost
         
         # Log view
         existing = ContactView(viewer_id=current_user.id, viewed_id=target_user_id)

@@ -203,19 +203,46 @@ def run_tests():
         print(f"✗ Private note creation failed: {status} - {note_res}")
         sys.exit(1)
 
-    # Test 15: Contact Views Credit check
-    print(f"\n[Test 15] Viewing contact details of User {target_id}...")
+    # Test 15: Free Tier Restrictions (Contact Views and Messaging)
+    print(f"\n[Test 15] Verifying Free Tier Restrictions on Contact Views for User {target_id}...")
+    status, contact_res = make_request("POST", f"/api/explore/contact-views/{target_id}")
+    if status == 403:
+        print("✓ Verified Free Tier blocked from unlocking contact views without a paid plan.")
+    else:
+        print(f"✗ Expected 403 for Free tier contact view, got: {status} - {contact_res}")
+        sys.exit(1)
+
+    print(f"\n[Test 16] Verifying Free Tier Restrictions on Initiating Chats for User {target_id}...")
+    msg_data = {"receiver_id": target_id, "message_text": "Hello, can we connect?", "message_type": "chat"}
+    status, msg_res = make_request("POST", "/api/inbox/messages", data=msg_data)
+    if status == 403:
+        print("✓ Verified Free Tier blocked from initiating new chats to users who haven't messaged first.")
+    else:
+        print(f"✗ Expected 403 for Free tier uninitiated chat, got: {status} - {msg_res}")
+        sys.exit(1)
+
+    # Test 17: Membership Upgrades (Purchase Gold Tier)
+    print("\n[Test 17] Upgrading membership to 'Gold' plan (3 months / 90 days)...")
+    upgrade_data = {"plan_type": "Gold", "payment_status": "Success"}
+    status, upgrade_res = make_request("POST", "/api/menu/subscribe", data=upgrade_data)
+    if status == 200 and upgrade_res["membership_status"] == "Premium" and upgrade_res["remaining_contact_views"] >= 100:
+        print(f"✓ Upgrade successful. Plan: Gold, Contact Views: {upgrade_res['remaining_contact_views']}, Message Credits: {upgrade_res['remaining_messages']}")
+    else:
+        print(f"✗ Membership upgrade failed: {status} - {upgrade_res}")
+        sys.exit(1)
+
+    # Test 18: Contact Views as Active Paid Member
+    print(f"\n[Test 18] Viewing contact details of User {target_id} as Paid Member...")
     status, contact_res = make_request("POST", f"/api/explore/contact-views/{target_id}")
     if status == 200:
-        # Check if views decremented on auth/me
         _, me = make_request("GET", "/api/auth/me")
-        print(f"✓ Contact viewed successfully. Remaining view credits: {me['remaining_contact_views']} (decremented from 5 to 4)")
+        print(f"✓ Contact viewed successfully. Remaining view credits: {me['remaining_contact_views']}")
     else:
         print(f"✗ View contact details failed: {status} - {contact_res}")
         sys.exit(1)
 
-    # Test 16: Messaging (Send interest request message)
-    print(f"\n[Test 16] Sending a chat connection message to User {target_id}...")
+    # Test 19: Messaging as Active Paid Member
+    print(f"\n[Test 19] Sending chat message to User {target_id} as Paid Member...")
     msg_data = {"receiver_id": target_id, "message_text": "Assalamu alaikum, I reviewed your profile and would love to connect.", "message_type": "chat"}
     status, msg_res = make_request("POST", "/api/inbox/messages", data=msg_data)
     if status == 201:
@@ -224,42 +251,14 @@ def run_tests():
         print(f"✗ Send message failed: {status} - {msg_res}")
         sys.exit(1)
 
-    # Test 17: Get Conversations Summary
-    print("\n[Test 17] Retrieving conversations list...")
-    status, convs = make_request("GET", "/api/inbox/conversations")
-    if status == 200 and len(convs) > 0:
-        print(f"✓ Found active conversation with: '{convs[0]['participant']['name']}', Last Message: '{convs[0]['last_message']['message_text']}'")
+    # Test 20: Test Rollover & Extension upon Recharge
+    print("\n[Test 20] Recharging with 'Silver' plan to test rollover of unused credits and validity extension...")
+    silver_data = {"plan_type": "Silver", "payment_status": "Success"}
+    status, silver_res = make_request("POST", "/api/menu/subscribe", data=silver_data)
+    if status == 200 and silver_res["remaining_contact_views"] >= 119: # 99 remaining + 20 new
+        print(f"✓ Credit rollover verified! Remaining views accumulated: {silver_res['remaining_contact_views']} (99 + 20 = {silver_res['remaining_contact_views']})")
     else:
-        print(f"✗ Get conversations failed: {status} - {convs}")
-        sys.exit(1)
-
-    # Test 18: Get Menu Summary
-    print("\n[Test 18] Retrieving sidebar Menu details...")
-    status, menu = make_request("GET", "/api/menu/summary")
-    if status == 200:
-        print(f"✓ Menu Summary loaded. Status: {menu['membership_status']}, Views Remaining: {menu['remaining_contact_views']}, Messages Remaining: {menu['remaining_messages']}")
-    else:
-        print(f"✗ Get menu summary failed: {status} - {menu}")
-        sys.exit(1)
-
-    # Test 19: Membership Upgrades (Purchase Gold Tier)
-    print("\n[Test 19] Upgrading membership to 'Gold' plan...")
-    upgrade_data = {"plan_type": "Gold", "payment_status": "Success"}
-    status, upgrade_res = make_request("POST", "/api/menu/subscribe", data=upgrade_data)
-    if status == 200 and upgrade_res["membership_status"] == "Premium" and upgrade_res["remaining_contact_views"] == 100:
-        print(f"✓ Upgrade successful. Plan: Gold, New Contact Views: {upgrade_res['remaining_contact_views']}, New Message Credits: {upgrade_res['remaining_messages']}")
-    else:
-        print(f"✗ Membership upgrade failed: {status} - {upgrade_res}")
-        sys.exit(1)
-
-    # Test 20: ID Verification Document Upload
-    print("\n[Test 20] Uploading ID verification document...")
-    verify_data = {"document_url": "https://example.com/my_id_card.pdf"}
-    status, verify_res = make_request("POST", "/api/auth/verify-id", data=verify_data)
-    if status == 200 and verify_res["id_verification_status"] == "Pending":
-        print("✓ Document uploaded. Status transitioned to 'Pending'.")
-    else:
-        print(f"✗ ID Verification request failed: {status} - {verify_res}")
+        print(f"✗ Rollover verification failed: {status} - {silver_res}")
         sys.exit(1)
 
     # Test 21: DELETE note

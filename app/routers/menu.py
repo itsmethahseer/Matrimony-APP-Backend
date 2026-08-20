@@ -13,6 +13,8 @@ from app.utils.security import get_password_hash
 
 router = APIRouter(prefix="/menu", tags=["Menu & Membership"])
 
+from app.utils.credits import is_user_plan_active, is_user_plan_expired
+
 class MenuSummaryResponse(BaseModel):
     name: str
     user_id: int
@@ -24,6 +26,7 @@ class MenuSummaryResponse(BaseModel):
     credits: int
     plan_validity: Optional[datetime.datetime]
     is_expired: bool
+    is_plan_active: bool
 
 class FeedbackCreate(BaseModel):
     rating: int # 1 to 5
@@ -42,12 +45,17 @@ def get_menu_summary(
     profile = db.query(Profile).filter(Profile.user_id == current_user.id).first()
     name = profile.name if profile else current_user.email.split("@")[0].capitalize()
     
+    now = datetime.datetime.utcnow()
     is_expired = False
-    if current_user.plan_validity and current_user.plan_validity < datetime.datetime.utcnow():
+    if current_user.plan_validity and current_user.plan_validity <= now:
         is_expired = True
-        # Dynamically switch membership status to Expired if past validity date
         if current_user.membership_status == "Premium":
             current_user.membership_status = "Expired"
+            db.commit()
+            db.refresh(current_user)
+    elif current_user.plan_validity and current_user.plan_validity > now:
+        if current_user.membership_status != "Premium" and current_user.plan_type:
+            current_user.membership_status = "Premium"
             db.commit()
             db.refresh(current_user)
 
@@ -62,8 +70,11 @@ def get_menu_summary(
             remaining_call_time=9999,
             credits=9999,
             plan_validity=None,
-            is_expired=False
+            is_expired=False,
+            is_plan_active=True
         )
+
+    plan_active = is_user_plan_active(current_user)
 
     return MenuSummaryResponse(
         name=name,
@@ -75,7 +86,8 @@ def get_menu_summary(
         remaining_call_time=current_user.remaining_call_time,
         credits=current_user.credits,
         plan_validity=current_user.plan_validity,
-        is_expired=is_expired
+        is_expired=is_expired,
+        is_plan_active=plan_active
     )
 
 
@@ -86,10 +98,16 @@ def subscribe_or_upgrade(
     db: Session = Depends(get_db)
 ):
     """
-    Upgrades user plan and replenishes balances:
-    - Silver: 20 contact views, 200 messages, 60 minutes calls, 30 days validity
-    - Gold: 100 contact views, 1000 messages, 300 minutes calls, 90 days validity
-    - Platinum: 9999 contact views, 9999 messages, 1000 minutes calls, 180 days validity
+    Upgrades or recharges user plan with credit rollover:
+    - Silver (1 month): 20 contact views, 200 messages, 60 minutes calls, 100 credits, 30 days validity
+    - Gold (3 months): 100 contact views, 1000 messages, 300 minutes calls, 500 credits, 90 days validity
+    - Platinum (6 months): 9999 contact views, 9999 messages, 1000 minutes calls, 9999 credits, 180 days validity
+
+    Rollover logic:
+    - Unused credits, remaining messages, contact views, and call minutes from previous recharges
+      are NOT cleared — they are extended and ADDED to the new plan credits.
+    - If user recharges before expiry, new validity days are added onto their existing validity date.
+    - If user recharges after expiry, validity starts from now.
     """
     if plan_in.payment_status != "Success":
         raise HTTPException(status_code=400, detail="Payment transaction failed. Please retry.")
@@ -116,13 +134,29 @@ def subscribe_or_upgrade(
     else:
         raise HTTPException(status_code=400, detail="Invalid plan type. Options: Silver, Gold, Platinum")
 
+    now = datetime.datetime.utcnow()
+    # 1. Validity extension logic
+    if current_user.plan_validity and current_user.plan_validity > now:
+        # Extend from existing expiration date
+        current_user.plan_validity = current_user.plan_validity + datetime.timedelta(days=validity_days)
+    else:
+        # Start fresh validity from now
+        current_user.plan_validity = now + datetime.timedelta(days=validity_days)
+
+    # 2. Rollover & add balances onto existing credits
     current_user.membership_status = "Premium"
-    current_user.plan_type = plan_in.plan_type
-    current_user.remaining_contact_views = contact_views
-    current_user.remaining_messages = messages
-    current_user.remaining_call_time = call_time
-    current_user.credits = credits_replenish
-    current_user.plan_validity = datetime.datetime.utcnow() + datetime.timedelta(days=validity_days)
+    current_user.plan_type = plan_in.plan_type.capitalize()
+
+    if plan == "platinum":
+        current_user.remaining_contact_views = 9999
+        current_user.remaining_messages = 9999
+        current_user.remaining_call_time = max((current_user.remaining_call_time or 0) + call_time, 1000)
+        current_user.credits = 9999
+    else:
+        current_user.remaining_contact_views = (current_user.remaining_contact_views or 0) + contact_views
+        current_user.remaining_messages = (current_user.remaining_messages or 0) + messages
+        current_user.remaining_call_time = (current_user.remaining_call_time or 0) + call_time
+        current_user.credits = (current_user.credits or 0) + credits_replenish
     
     db.commit()
     db.refresh(current_user)
@@ -135,13 +169,10 @@ def renew_membership(
     db: Session = Depends(get_db)
 ):
     """
-    Renews existing plan if subscription has expired.
+    Renews existing plan if subscription has expired or is nearing expiry.
     """
-    if not current_user.plan_type:
-        raise HTTPException(status_code=400, detail="No existing plan to renew. Please use subscribe endpoint.")
-
-    # Call upgrade logic for current plan type
-    plan_in = PlanUpgrade(plan_type=current_user.plan_type, payment_status="Success")
+    plan_to_renew = current_user.plan_type or "Silver"
+    plan_in = PlanUpgrade(plan_type=plan_to_renew, payment_status="Success")
     return subscribe_or_upgrade(plan_in=plan_in, current_user=current_user, db=db)
 
 

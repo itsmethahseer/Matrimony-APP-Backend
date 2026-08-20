@@ -20,7 +20,7 @@ class User(Base):
     # Membership fields
     membership_status = Column(String, default="Free")  # Free, Premium, Expired
     plan_type = Column(String, nullable=True)            # Silver, Gold, Platinum, etc.
-    remaining_contact_views = Column(Integer, default=5)
+    remaining_contact_views = Column(Integer, default=0)
     remaining_messages = Column(Integer, default=50)
     remaining_call_time = Column(Integer, default=0)    # in minutes
     credits = Column(Integer, default=25)

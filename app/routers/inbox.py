@@ -11,7 +11,7 @@ from app.models.chat import ChatMessage
 from app.models.interaction import Block
 from app.schemas.chat import MessageCreate, MessageResponse, ChatSummaryResponse, ChatParticipant
 from app.utils.deps import get_current_user
-from app.utils.credits import get_action_credit_cost
+from app.utils.credits import get_action_credit_cost, is_user_plan_active, is_user_plan_expired
 
 router = APIRouter(prefix="/inbox", tags=["Inbox & Chats"])
 
@@ -43,18 +43,20 @@ def send_message(
 
     # Check quotas and deduct credits (Skipped for Admin users)
     if not current_user.is_admin:
-        if msg_in.message_type == "chat":
-            cost = get_action_credit_cost(current_user.plan_type, "send_message")
-            if current_user.credits < cost:
-                raise HTTPException(
-                    status_code=403,
-                    detail=f"Insufficient credits remaining. Sending a message requires {cost} credits. Please upgrade your membership!"
-                )
-            if current_user.remaining_messages > 0:
-                current_user.remaining_messages -= 1
-            current_user.credits -= cost
-            
-        elif msg_in.message_type == "call":
+        if msg_in.message_type == "call":
+            # Calls are only allowable for users with an active paid plan
+            if not is_user_plan_active(current_user):
+                if is_user_plan_expired(current_user):
+                    raise HTTPException(
+                        status_code=403,
+                        detail="Your membership plan has expired. Your remaining call minutes are preserved, but you must recharge or renew your plan to make calls."
+                    )
+                else:
+                    raise HTTPException(
+                        status_code=403,
+                        detail="Voice and video calls are not available on the Free tier. Please upgrade to a Silver, Gold, or Platinum plan to make calls."
+                    )
+
             duration_minutes = (msg_in.call_duration or 0) // 60
             if duration_minutes <= 0:
                 duration_minutes = 1 # count minimum 1 minute
@@ -62,14 +64,61 @@ def send_message(
             cost_per_minute = get_action_credit_cost(current_user.plan_type, "call")
             total_cost = cost_per_minute * duration_minutes
             
-            if current_user.credits < total_cost:
+            if (current_user.remaining_call_time or 0) < duration_minutes and (current_user.credits or 0) < total_cost:
                 raise HTTPException(
                     status_code=403,
-                    detail=f"Insufficient credits remaining. Calling requires {total_cost} credits ({cost_per_minute} credits/min). Please upgrade your membership!"
+                    detail=f"Insufficient call minutes or credits. Calling requires {duration_minutes} minutes or {total_cost} credits. Please recharge your membership!"
                 )
-            if current_user.remaining_call_time >= duration_minutes:
+            if current_user.remaining_call_time and current_user.remaining_call_time >= duration_minutes:
                 current_user.remaining_call_time -= duration_minutes
-            current_user.credits -= total_cost
+            elif current_user.credits and current_user.credits >= total_cost:
+                current_user.credits -= total_cost
+
+        elif msg_in.message_type == "chat":
+            has_active_plan = is_user_plan_active(current_user)
+
+            if not has_active_plan:
+                # Free tier & Expired users: Only allowed to send messages if someone messaged them first
+                incoming_msg = db.query(ChatMessage).filter(
+                    ChatMessage.sender_id == msg_in.receiver_id,
+                    ChatMessage.receiver_id == current_user.id
+                ).first()
+
+                if not incoming_msg:
+                    if is_user_plan_expired(current_user):
+                        raise HTTPException(
+                            status_code=403,
+                            detail="Your membership plan has expired. Please recharge or renew your plan to initiate new conversations. You can still reply to messages received from paid members."
+                        )
+                    else:
+                        raise HTTPException(
+                            status_code=403,
+                            detail="Free members can only reply to messages initiated by paid members. Please upgrade to a Silver, Gold, or Platinum plan to start new conversations."
+                        )
+
+                # Replying to an existing conversation
+                if (current_user.remaining_messages or 0) <= 0 and (current_user.credits or 0) <= 0:
+                    raise HTTPException(
+                        status_code=403,
+                        detail="You have used all your message credits. Please upgrade your membership to continue chatting."
+                    )
+                if current_user.remaining_messages and current_user.remaining_messages > 0:
+                    current_user.remaining_messages -= 1
+                elif current_user.credits and current_user.credits > 0:
+                    current_user.credits -= 1
+
+            else:
+                # Active plan user: Can start new chats or reply
+                cost = get_action_credit_cost(current_user.plan_type, "send_message")
+                if (current_user.remaining_messages or 0) <= 0 and (current_user.credits or 0) < cost:
+                    raise HTTPException(
+                        status_code=403,
+                        detail=f"Insufficient message balance. Sending a message requires {cost} credits. Please recharge your membership!"
+                    )
+                if current_user.remaining_messages and current_user.remaining_messages > 0:
+                    current_user.remaining_messages -= 1
+                elif current_user.credits and current_user.credits >= cost:
+                    current_user.credits -= cost
 
     message = ChatMessage(
         sender_id=current_user.id,

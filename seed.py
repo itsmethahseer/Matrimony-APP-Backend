@@ -23,22 +23,22 @@ def seed_db():
         
         # 1. Create Users
         users_data = [
-            # Admin User
-            {"email": "admin@matrimony.com", "password": "admin123", "membership_status": "Premium", "plan_type": "Platinum", "views": 9999, "messages": 9999, "calls": 1000, "is_admin": True},
-            # Main Test User (Male, Free)
-            {"email": "ahmed@example.com", "password": "password123", "membership_status": "Free", "plan_type": None, "views": 5, "messages": 5, "calls": 0},
-            # Main Test User 2 (Female, Premium)
-            {"email": "fatima@example.com", "password": "password123", "membership_status": "Premium", "plan_type": "Gold", "views": 100, "messages": 1000, "calls": 300},
+            # Admin User (Platinum)
+            {"email": "admin@matrimony.com", "password": "admin123", "membership_status": "Premium", "plan_type": "Platinum", "views": 9999, "messages": 9999, "calls": 1000, "credits": 9999, "days": 180, "is_admin": True},
+            # Main Test User (Male, Free Tier)
+            {"email": "ahmed@example.com", "password": "password123", "membership_status": "Free", "plan_type": None, "views": 0, "messages": 50, "calls": 0, "credits": 25, "days": 0},
+            # Main Test User 2 (Female, Gold Tier)
+            {"email": "fatima@example.com", "password": "password123", "membership_status": "Premium", "plan_type": "Gold", "views": 100, "messages": 1000, "calls": 300, "credits": 500, "days": 90},
             # Other Matches (Females for Ahmed, Males for Fatima)
-            {"email": "aisha@example.com", "password": "password123", "membership_status": "Free", "plan_type": None, "views": 5, "messages": 5, "calls": 0},
-            {"email": "zainab@example.com", "password": "password123", "membership_status": "Premium", "plan_type": "Silver", "views": 20, "messages": 200, "calls": 60},
-            {"email": "yasmin@example.com", "password": "password123", "membership_status": "Free", "plan_type": None, "views": 5, "messages": 5, "calls": 0},
-            {"email": "mariam@example.com", "password": "password123", "membership_status": "Free", "plan_type": None, "views": 5, "messages": 5, "calls": 0, "id_status": "Pending", "doc_url": "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80"},
-            {"email": "bilal@example.com", "password": "password123", "membership_status": "Free", "plan_type": None, "views": 5, "messages": 5, "calls": 0, "id_status": "Pending", "doc_url": "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=600&q=80"},
-            {"email": "yousef@example.com", "password": "password123", "membership_status": "Premium", "plan_type": "Platinum", "views": 9999, "messages": 9999, "calls": 1000},
-            # Dedicated Interest Tester Users
-            {"email": "interest_tester_male@example.com", "password": "password123", "membership_status": "Free", "plan_type": None, "views": 10, "messages": 10, "calls": 0},
-            {"email": "interest_tester_female@example.com", "password": "password123", "membership_status": "Free", "plan_type": None, "views": 10, "messages": 10, "calls": 0},
+            {"email": "aisha@example.com", "password": "password123", "membership_status": "Free", "plan_type": None, "views": 0, "messages": 50, "calls": 0, "credits": 25, "days": 0},
+            {"email": "zainab@example.com", "password": "password123", "membership_status": "Premium", "plan_type": "Silver", "views": 20, "messages": 200, "calls": 60, "credits": 100, "days": 30},
+            {"email": "yasmin@example.com", "password": "password123", "membership_status": "Free", "plan_type": None, "views": 0, "messages": 50, "calls": 0, "credits": 25, "days": 0},
+            {"email": "mariam@example.com", "password": "password123", "membership_status": "Free", "plan_type": None, "views": 0, "messages": 50, "calls": 0, "credits": 25, "days": 0, "id_status": "Pending", "doc_url": "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80"},
+            {"email": "bilal@example.com", "password": "password123", "membership_status": "Free", "plan_type": None, "views": 0, "messages": 50, "calls": 0, "credits": 25, "days": 0, "id_status": "Pending", "doc_url": "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=600&q=80"},
+            {"email": "yousef@example.com", "password": "password123", "membership_status": "Premium", "plan_type": "Platinum", "views": 9999, "messages": 9999, "calls": 1000, "credits": 9999, "days": 180},
+            # Dedicated Interest Tester Users (Free Tier)
+            {"email": "interest_tester_male@example.com", "password": "password123", "membership_status": "Free", "plan_type": None, "views": 0, "messages": 50, "calls": 0, "credits": 25, "days": 0},
+            {"email": "interest_tester_female@example.com", "password": "password123", "membership_status": "Free", "plan_type": None, "views": 0, "messages": 50, "calls": 0, "credits": 25, "days": 0},
         ]
         
         db_users = []
@@ -52,8 +52,8 @@ def seed_db():
                 remaining_contact_views=ud["views"],
                 remaining_messages=ud["messages"],
                 remaining_call_time=ud["calls"],
-                credits=9999 if ud["views"] == 9999 else ud["views"] * 5,
-                plan_validity=datetime.datetime.utcnow() + datetime.timedelta(days=90) if ud["plan_type"] else None,
+                credits=ud.get("credits", 25),
+                plan_validity=datetime.datetime.utcnow() + datetime.timedelta(days=ud["days"]) if ud["days"] > 0 else None,
                 id_verification_status=ud.get("id_status", "Verified" if ud["email"] in ["ahmed@example.com", "fatima@example.com", "yousef@example.com", "admin@matrimony.com"] else "Unverified"),
                 id_verification_document_url=ud.get("doc_url", None),
                 last_active_at=datetime.datetime.utcnow() - datetime.timedelta(minutes=3) if ud["email"] in ["ahmed@example.com", "aisha@example.com", "yousef@example.com", "admin@matrimony.com"] else datetime.datetime.utcnow() - datetime.timedelta(hours=2)
