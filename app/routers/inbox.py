@@ -44,35 +44,10 @@ def send_message(
     # Check quotas and deduct credits (Skipped for Admin users)
     if not current_user.is_admin:
         if msg_in.message_type == "call":
-            # Calls are only allowable for users with an active paid plan
-            if not is_user_plan_active(current_user):
-                if is_user_plan_expired(current_user):
-                    raise HTTPException(
-                        status_code=403,
-                        detail="Your membership plan has expired. Your remaining call minutes are preserved, but you must recharge or renew your plan to make calls."
-                    )
-                else:
-                    raise HTTPException(
-                        status_code=403,
-                        detail="Voice and video calls are not available on the Free tier. Please upgrade to a Silver, Gold, or Platinum plan to make calls."
-                    )
-
-            duration_minutes = (msg_in.call_duration or 0) // 60
-            if duration_minutes <= 0:
-                duration_minutes = 1 # count minimum 1 minute
-                
-            cost_per_minute = get_action_credit_cost(current_user.plan_type, "call")
-            total_cost = cost_per_minute * duration_minutes
-            
-            if (current_user.remaining_call_time or 0) < duration_minutes and (current_user.credits or 0) < total_cost:
-                raise HTTPException(
-                    status_code=403,
-                    detail=f"Insufficient call minutes or credits. Calling requires {duration_minutes} minutes or {total_cost} credits. Please recharge your membership!"
-                )
-            if current_user.remaining_call_time and current_user.remaining_call_time >= duration_minutes:
-                current_user.remaining_call_time -= duration_minutes
-            elif current_user.credits and current_user.credits >= total_cost:
-                current_user.credits -= total_cost
+            raise HTTPException(
+                status_code=400,
+                detail="In-app voice calling is no longer supported. Please connect directly using the match's mobile number or WhatsApp."
+            )
 
         elif msg_in.message_type == "chat":
             has_active_plan = is_user_plan_active(current_user)

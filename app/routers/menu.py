@@ -239,9 +239,9 @@ def submit_feedback(feedback: FeedbackCreate, current_user: User = Depends(get_c
 @router.get("/support")
 def get_help_and_support():
     return {
-        "support_email": "support@matrimonyapp.com",
-        "hotline": "+1-800-MATRIMONY",
-        "operating_hours": "24/7 Support",
+        "support_email": "support@helpmeet.com",
+        "hotline": "+91 98765 43210",
+        "operating_hours": "10 AM to 6 PM (IST)",
         "faq": [
             {"question": "How do I edit my profile?", "answer": "Go to View/Edit profile in the sidebar menu and update any details."},
             {"question": "What happens when contact views run out?", "answer": "You will need to upgrade/subscribe to Silver, Gold, or Platinum plans to get more views."}

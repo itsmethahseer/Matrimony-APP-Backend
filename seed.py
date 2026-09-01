@@ -435,10 +435,7 @@ def seed_db():
         msg2 = ChatMessage(sender_id=users_dict["fatima@example.com"].id, receiver_id=users_dict["ahmed@example.com"].id, message_text="Walaikum assalam Ahmed. Glad to connect. Tell me more about your family background.", message_type="chat", is_read=True)
         msg3 = ChatMessage(sender_id=users_dict["ahmed@example.com"].id, receiver_id=users_dict["fatima@example.com"].id, message_text="Sure, we are a nuclear family based in Mumbai. My father is retired, and mother is a homemaker.", message_type="chat")
         
-        # Call log between Ahmed and Fatima
-        call_msg = ChatMessage(sender_id=users_dict["fatima@example.com"].id, receiver_id=users_dict["ahmed@example.com"].id, message_type="call", call_duration=480) # 8 minutes call
-        
-        db.add_all([msg1, msg2, msg3, call_msg])
+        db.add_all([msg1, msg2, msg3])
         db.commit()
         print("Chat messages initialized!")
         
