@@ -71,16 +71,17 @@ def send_message(
                             detail="Free members can only reply to messages initiated by paid members. Please upgrade to a Silver, Gold, or Platinum plan to start new conversations."
                         )
 
-                # Replying to an existing conversation
-                if (current_user.remaining_messages or 0) <= 0 and (current_user.credits or 0) <= 0:
+                # Replying to an existing conversation — use cost table for consistency
+                free_cost = get_action_credit_cost(current_user.plan_type, "send_message")
+                if (current_user.remaining_messages or 0) <= 0 and (current_user.credits or 0) < free_cost:
                     raise HTTPException(
                         status_code=403,
                         detail="You have used all your message credits. Please upgrade your membership to continue chatting."
                     )
                 if current_user.remaining_messages and current_user.remaining_messages > 0:
                     current_user.remaining_messages -= 1
-                elif current_user.credits and current_user.credits > 0:
-                    current_user.credits -= 1
+                elif current_user.credits and current_user.credits >= free_cost:
+                    current_user.credits -= free_cost
 
             else:
                 # Active plan user: Can start new chats or reply

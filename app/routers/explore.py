@@ -44,6 +44,23 @@ def send_interest(
     if blocked:
         raise HTTPException(status_code=403, detail="Cannot send interest to this profile.")
 
+    # --- Credit check helper (shared across all interest-send paths) ---
+    def _deduct_interest_credits():
+        if current_user.is_admin:
+            return
+        if is_user_plan_expired(current_user):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Your membership plan has expired. Your credits are preserved, but you must recharge or renew your plan to send interest requests."
+            )
+        cost = get_action_credit_cost(current_user.plan_type, "send_interest")
+        if (current_user.credits or 0) < cost:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Insufficient credits remaining. Sending interest requires {cost} credits. Please upgrade your membership!"
+            )
+        current_user.credits -= cost
+
     # Check for existing interest in the same direction
     existing = db.query(Interest).filter(
         Interest.sender_id == current_user.id,
@@ -51,6 +68,8 @@ def send_interest(
     ).first()
     if existing:
         if existing.status == "Declined":
+            # Re-sending to a declined profile costs credits just like a new request
+            _deduct_interest_credits()
             existing.status = "Pending"
             db.commit()
             db.refresh(existing)
@@ -67,6 +86,8 @@ def send_interest(
     if opposite:
         # If there's an opposite pending or declined interest, auto-accept it to connect them
         if opposite.status in ["Pending", "Declined"]:
+            # Deduct credits for this mutual-interest action before auto-accepting
+            _deduct_interest_credits()
             opposite.status = "Accepted"
             db.commit()
             db.refresh(opposite)
@@ -74,22 +95,9 @@ def send_interest(
         else:
             raise HTTPException(status_code=400, detail="You are already connected with this user.")
 
-    # Check cost and deduct credits
-    if not current_user.is_admin:
-        if is_user_plan_expired(current_user):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Your membership plan has expired. Your credits are preserved, but you must recharge or renew your plan to send interest requests."
-            )
-        cost = get_action_credit_cost(current_user.plan_type, "send_interest")
-        if (current_user.credits or 0) < cost:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Insufficient credits remaining. Sending interest requires {cost} credits. Please upgrade your membership!"
-            )
-        current_user.credits -= cost
+    # New interest — deduct credits then create
+    _deduct_interest_credits()
 
-    # Create interest
     interest = Interest(sender_id=current_user.id, receiver_id=receiver.id, status="Pending")
     db.add(interest)
     db.commit()
