@@ -10,6 +10,7 @@ from app.models.profile import Profile, Photo
 from app.models.interaction import ProfileVisit, Block, ContactView
 from app.schemas.profile import ProfileResponse, ProfileUpdate, PhotoResponse, PhotoCreate
 from app.utils.deps import get_current_user
+from app.utils.phone_filter import strip_phone_numbers
 
 router = APIRouter(prefix="/profiles", tags=["Profiles"])
 
@@ -44,8 +45,19 @@ def update_my_profile(
 ):
     profile = get_or_create_profile(current_user, db)
     
+    # Text fields where phone numbers should be stripped automatically
+    PHONE_SANITIZE_FIELDS = {
+        'tagline', 'profile_description', 'about',
+        'marriage_goals', 'marriage_plan', 'additional_marriage_plan',
+        'education_profession_description', 'appearance_description',
+        'family_details', 'personality', 'partner_expectation',
+        'health_or_disabilities',
+    }
+    
     update_data = profile_in.model_dump(exclude_unset=True)
     for field, value in update_data.items():
+        if field in PHONE_SANITIZE_FIELDS and isinstance(value, str):
+            value = strip_phone_numbers(value)
         setattr(profile, field, value)
         
     db.commit()

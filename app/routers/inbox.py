@@ -12,6 +12,7 @@ from app.models.interaction import Block
 from app.schemas.chat import MessageCreate, MessageResponse, ChatSummaryResponse, ChatParticipant
 from app.utils.deps import get_current_user
 from app.utils.credits import get_action_credit_cost, is_user_plan_active, is_user_plan_expired
+from app.utils.phone_filter import contains_phone_number
 
 router = APIRouter(prefix="/inbox", tags=["Inbox & Chats"])
 
@@ -41,6 +42,13 @@ def send_message(
     if blocked:
         raise HTTPException(status_code=403, detail="Cannot send message. User has blocked you or is blocked.")
 
+    # Check for phone numbers in message text — reject if found
+    if contains_phone_number(msg_in.message_text):
+        raise HTTPException(
+            status_code=403,
+            detail="Sharing phone numbers via chat is not allowed. Contact details can only be viewed through the profile unlock feature."
+        )
+
     # Check quotas and deduct credits (Skipped for Admin users)
     if not current_user.is_admin:
         if msg_in.message_type == "call":
@@ -53,35 +61,17 @@ def send_message(
             has_active_plan = is_user_plan_active(current_user)
 
             if not has_active_plan:
-                # Free tier & Expired users: Only allowed to send messages if someone messaged them first
-                incoming_msg = db.query(ChatMessage).filter(
-                    ChatMessage.sender_id == msg_in.receiver_id,
-                    ChatMessage.receiver_id == current_user.id
-                ).first()
-
-                if not incoming_msg:
-                    if is_user_plan_expired(current_user):
-                        raise HTTPException(
-                            status_code=403,
-                            detail="Your membership plan has expired. Please recharge or renew your plan to initiate new conversations. You can still reply to messages received from paid members."
-                        )
-                    else:
-                        raise HTTPException(
-                            status_code=403,
-                            detail="Free members can only reply to messages initiated by paid members. Please upgrade to a Silver, Gold, or Platinum plan to start new conversations."
-                        )
-
-                # Replying to an existing conversation — use cost table for consistency
-                free_cost = get_action_credit_cost(current_user.plan_type, "send_message")
-                if (current_user.remaining_messages or 0) <= 0 and (current_user.credits or 0) < free_cost:
+                # No active plan — completely block messaging
+                if is_user_plan_expired(current_user):
                     raise HTTPException(
                         status_code=403,
-                        detail="You have used all your message credits. Please upgrade your membership to continue chatting."
+                        detail="Your membership plan has expired. Please recharge or renew your plan to send messages. Only premium members can use the chat feature."
                     )
-                if current_user.remaining_messages and current_user.remaining_messages > 0:
-                    current_user.remaining_messages -= 1
-                elif current_user.credits and current_user.credits >= free_cost:
-                    current_user.credits -= free_cost
+                else:
+                    raise HTTPException(
+                        status_code=403,
+                        detail="Chat is a premium feature. Please upgrade to a Silver, Gold, or Platinum plan to send messages."
+                    )
 
             else:
                 # Active plan user: Can start new chats or reply
